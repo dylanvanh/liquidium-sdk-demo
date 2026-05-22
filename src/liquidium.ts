@@ -5,12 +5,9 @@ import {
   type InstantLoan,
   type InstantLoanAsset,
   type LtvCalculation,
-  type NativeAddressSupplyTarget,
-  type IcrcAccountSupplyTarget,
   type Pool,
+  type SupplyTarget,
 } from "@liquidium/client";
-
-export type { Activity, AssetPrices, InstantLoan, LtvCalculation, Pool };
 
 export const POLL_INTERVAL_MS = 4_000;
 export const DEPOSIT_WINDOW_SECONDS = 3_600n;
@@ -27,9 +24,7 @@ const INSTANT_LOAN_ASSETS = ["BTC", "SOL", "USDC", "USDT"] as const;
 
 const liquidiumClient = new LiquidiumClient({});
 
-export type SupplyTarget = NativeAddressSupplyTarget | IcrcAccountSupplyTarget;
-
-export type QuoteState =
+type QuoteState =
   | {
       status: "ready";
       ltv: LtvCalculation;
@@ -38,13 +33,13 @@ export type QuoteState =
     }
   | { status: "empty" | "error"; message: string };
 
-export type TrackingResult = {
+type TrackingResult = {
   loan: InstantLoan;
   activities: Activity[];
   activityError: string | null;
 };
 
-export type CreateInstantLoanParams = {
+type CreateInstantLoanParams = {
   collateralPool: Pool;
   borrowPool: Pool;
   quoteState: Extract<QuoteState, { status: "ready" }>;

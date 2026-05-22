@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useState, type FormEvent } from "react";
+import type { Activity, AssetPrices, InstantLoan, Pool, SupplyTarget } from "@liquidium/client";
 import {
   DEFAULT_BORROW_ASSETS,
   DEFAULT_COLLATERAL_ASSETS,
@@ -18,11 +19,6 @@ import {
   getErrorMessage,
   getPoolById,
   isInstantLoanAsset,
-  type Activity,
-  type AssetPrices,
-  type InstantLoan,
-  type Pool,
-  type SupplyTarget,
 } from "./liquidium";
 
 type MarketStatus = "loading" | "ready" | "error";
