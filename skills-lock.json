@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "liquidium-sdk-integration": {
+      "source": "Liquidium-Inc/liquidium-sdk",
+      "sourceType": "github",
+      "skillPath": "skills/liquidium-sdk-integration/SKILL.md",
+      "computedHash": "4bf5b2871696ebcab457db227998ff8c037e2196ff1644a50beb98e31144bd47"
+    }
+  }
+}
