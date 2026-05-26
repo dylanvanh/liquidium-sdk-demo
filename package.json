@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@liquidium/client": "^0.1.1",
+    "@liquidium/client": "^0.1.2",
     "@tailwindcss/vite": "^4.3.0",
     "@vitejs/plugin-react": "^6.0.2",
     "react": "^19.2.6",
