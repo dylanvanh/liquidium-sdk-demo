@@ -13,6 +13,7 @@ import {
   fetchMarketData,
   formatBaseUnits,
   formatBps,
+  formatMinimumBorrowAmount,
   formatQuoteErrors,
   formatScaledRate,
   formatSupplyTarget,
@@ -418,6 +419,7 @@ export function App() {
                 label="Borrow amount"
                 value={borrowInput}
                 asset={borrowPool?.asset ?? "asset"}
+                helperText={`SDK minimum: ${formatMinimumBorrowAmount(borrowPool)}`}
                 onChange={setBorrowInput}
               />
               <TextInput
@@ -556,11 +558,13 @@ function AmountInput({
   label,
   value,
   asset,
+  helperText,
   onChange,
 }: {
   label: string;
   value: string;
   asset: string;
+  helperText?: string;
   onChange: (value: string) => void;
 }) {
   return (
@@ -578,6 +582,7 @@ function AmountInput({
           {asset}
         </span>
       </div>
+      {helperText ? <span className="mt-2 block text-xs text-[#6b7468]">{helperText}</span> : null}
     </label>
   );
 }
@@ -647,9 +652,9 @@ function LoanDetails({ loan }: { loan: InstantLoan | null }) {
 
       <div className="mt-5 grid gap-3">
         <TargetCard
-          label="Collateral deposit target"
-          target={loan.depositTarget}
-          amount={`${formatBaseUnits(loan.collateral.amount, loan.position.collateralDecimals)} ${loan.collateral.asset}`}
+          label="Initial collateral deposit"
+          target={loan.initialDeposit.target}
+          amount={`${formatBaseUnits(loan.initialDeposit.amount, loan.initialDeposit.decimals)} ${loan.initialDeposit.asset}`}
         />
         <TargetCard
           label="Repayment target"
@@ -663,7 +668,7 @@ function LoanDetails({ loan }: { loan: InstantLoan | null }) {
         <Metric label="Profile" value={shortenMiddle(loan.profileId)} />
         <Metric
           label="Borrowed"
-          value={`${formatBaseUnits(loan.borrow.amount, loan.position.borrowedDecimals)} ${loan.borrow.asset}`}
+          value={`${formatBaseUnits(loan.borrow.amount, loan.borrow.decimals)} ${loan.borrow.asset}`}
         />
         <Metric
           label="Debt"

@@ -1,5 +1,6 @@
 import {
   LiquidiumClient,
+  getMinimumBorrowAmount,
   type Activity,
   type AssetPrices,
   type InstantLoan,
@@ -204,6 +205,20 @@ export function formatQuoteErrors(ltv: LtvCalculation): string {
   }
 
   return ltv.validationErrors.map((error) => error.message).join(" ");
+}
+
+export function formatMinimumBorrowAmount(pool: Pool | undefined): string {
+  if (!pool) {
+    return "--";
+  }
+
+  const minimumBorrowAmount = getMinimumBorrowAmount(pool.asset);
+
+  if (minimumBorrowAmount === ZERO_AMOUNT) {
+    return "No SDK minimum";
+  }
+
+  return `${formatBaseUnits(minimumBorrowAmount, pool.decimals)} ${pool.asset}`;
 }
 
 export function formatSupplyTarget(target: SupplyTarget): string {
