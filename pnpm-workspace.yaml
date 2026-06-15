@@ -1,2 +1,2 @@
 minimumReleaseAgeExclude:
-  - "@liquidium/client@0.2.1"
+  - "@liquidium/client"
