@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@liquidium/client':
-        specifier: ^0.3.3
-        version: 0.3.3(typescript@6.0.3)
+        specifier: ^0.4.0
+        version: 0.4.0(typescript@6.0.3)
       '@tailwindcss/vite':
         specifier: ^4.3.0
         version: 4.3.0(vite@8.0.14(jiti@2.7.0))
@@ -90,8 +90,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@liquidium/client@0.3.3':
-    resolution: {integrity: sha512-L+07+bK/jNiQ12WfR3IAEPaPbS0qG+RGPq8EmyV3A35513hg7mbgfekayw7qJFN3xO1a0OyvqEbztRVmnWVg6A==}
+  '@liquidium/client@0.4.0':
+    resolution: {integrity: sha512-5NhBG6uWuGZYxDWfoGzkCJG7+jgfBu7TuA4lLRt59BdhplsZoNkjAxHaOMLa2dgq2ml2ACEszvPjREaUgLLYpw==}
 
   '@napi-rs/wasm-runtime@1.1.4':
     resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
@@ -1204,7 +1204,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@liquidium/client@0.3.3(typescript@6.0.3)':
+  '@liquidium/client@0.4.0(typescript@6.0.3)':
     dependencies:
       '@dfinity/utils': 4.2.1(@icp-sdk/core@5.4.0)
       '@icp-sdk/canisters': 3.6.0(@dfinity/utils@4.2.1(@icp-sdk/core@5.4.0))(@icp-sdk/core@5.4.0)

@@ -25,7 +25,7 @@ import {
 type MarketStatus = "loading" | "ready" | "error";
 type Tone = "idle" | "waiting" | "working" | "success" | "error";
 type LoanStage = "deposit" | "borrow" | "repayment";
-type ActivityKindName = Activity["kind"];
+type ActivityOperation = Activity["status"]["operation"];
 
 export function App() {
   const [marketStatus, setMarketStatus] = useState<MarketStatus>("loading");
@@ -275,7 +275,7 @@ export function App() {
               <StatusChip
                 label="Loan"
                 tone={getLoanTone(activeLoan)}
-                value={activeLoan?.status ?? "not started"}
+                value={activeLoan ? formatLiquidiumStatus(activeLoan.status) : "not started"}
               />
               <StatusChip
                 label="Poll"
@@ -646,7 +646,7 @@ function LoanDetails({ loan }: { loan: InstantLoan | null }) {
           <h2 className="text-3xl font-semibold tracking-[-0.04em]">{loan.ref}</h2>
         </div>
         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getLoanToneClass(loan)}`}>
-          {loan.status}
+          {formatLiquidiumStatus(loan.status)}
         </span>
       </div>
 
@@ -732,7 +732,7 @@ function ActivityList({ activities }: { activities: Activity[] }) {
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-sm font-bold capitalize text-[#263126]">
-                    {activity.kind} {activity.direction}
+                    {activity.status.operation}
                   </p>
                   <p className="mt-1 text-xs text-[#6b7468]">
                     {activity.asset ?? "asset"} on {activity.chain ?? "chain"} ·{" "}
@@ -742,13 +742,13 @@ function ActivityList({ activities }: { activities: Activity[] }) {
                 <span
                   className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${getActivityToneClass(activity)}`}
                 >
-                  {activity.status}
+                  {formatLiquidiumStatus(activity.status)}
                 </span>
               </div>
               <div className="mt-3 grid gap-2 text-xs text-[#566052] md:grid-cols-3">
                 <p>Amount: {activity.amount.toString()}</p>
                 <p>Confirmations: {formatConfirmations(activity)}</p>
-                <p className="truncate">Tx: {activity.txid ?? activity.txids?.[0] ?? "pending"}</p>
+                <p className="truncate">Tx: {activity.txids?.[0] ?? "pending"}</p>
               </div>
             </div>
           ))}
@@ -759,11 +759,15 @@ function ActivityList({ activities }: { activities: Activity[] }) {
 }
 
 function formatConfirmations(activity: Activity): string {
-  if (activity.confirmations === null || activity.requiredConfirmations === null) {
+  if (activity.status.confirmations === null || activity.status.requiredConfirmations === null) {
     return "pending";
   }
 
-  return `${activity.confirmations}/${activity.requiredConfirmations}`;
+  return `${activity.status.confirmations}/${activity.status.requiredConfirmations}`;
+}
+
+function formatLiquidiumStatus(status: Activity["status"] | InstantLoan["status"]): string {
+  return `${status.operation.replace(/_/g, " ")} ${status.state.replace(/_/g, " ")}`;
 }
 
 function formatMarketStatus(status: MarketStatus): string {
@@ -791,13 +795,13 @@ function buildStageItems(loan: InstantLoan | null, activities: Activity[]) {
 }
 
 function buildStageItem(stage: LoanStage, loan: InstantLoan | null, activities: Activity[]) {
-  const activityKind = getActivityKindForStage(stage);
-  const activity = findLatestActivity(activities, activityKind);
+  const activityOperation = getActivityOperationForStage(stage);
+  const activity = findLatestActivity(activities, activityOperation);
 
   if (activity) {
     return {
       label: getStageLabel(stage),
-      status: activity.status,
+      status: formatLiquidiumStatus(activity.status),
       tone: getActivityTone(activity),
       description: getActivityDescription(activity),
     };
@@ -815,7 +819,7 @@ function buildStageItem(stage: LoanStage, loan: InstantLoan | null, activities: 
   return getLoanDerivedStage(stage, loan);
 }
 
-function getActivityKindForStage(stage: LoanStage): ActivityKindName {
+function getActivityOperationForStage(stage: LoanStage): ActivityOperation {
   if (stage === "deposit") {
     return "deposit";
   }
@@ -841,7 +845,7 @@ function getStageLabel(stage: LoanStage): string {
 
 function getLoanDerivedStage(stage: LoanStage, loan: InstantLoan) {
   if (stage === "deposit") {
-    if (loan.status === "awaiting_deposit") {
+    if (loan.status.operation === "deposit" && loan.status.state === "action_required") {
       return {
         label: "Deposit",
         status: "requested",
@@ -852,14 +856,14 @@ function getLoanDerivedStage(stage: LoanStage, loan: InstantLoan) {
 
     return {
       label: "Deposit",
-      status: loan.status === "closed" ? "confirmed" : "detected",
+      status: loan.status.operation === "deposit" ? loan.status.state : "detected",
       tone: "success" as Tone,
       description: "Collateral has been detected for this loan.",
     };
   }
 
   if (stage === "borrow") {
-    if (loan.status === "awaiting_deposit") {
+    if (loan.status.operation === "deposit" && loan.status.state !== "completed") {
       return {
         label: "Borrow",
         status: "waiting",
@@ -870,16 +874,19 @@ function getLoanDerivedStage(stage: LoanStage, loan: InstantLoan) {
 
     return {
       label: "Borrow",
-      status: loan.status === "active" || loan.status === "closed" ? "sent" : "processing",
+      status:
+        loan.status.operation === "borrow" && loan.status.state !== "completed"
+          ? loan.status.state
+          : "sent",
       tone:
-        loan.status === "active" || loan.status === "closed"
+        loan.status.operation !== "borrow" || loan.status.state === "completed"
           ? ("success" as Tone)
           : ("working" as Tone),
       description: "Liquidium is processing the requested borrow outflow.",
     };
   }
 
-  if (loan.status === "closed") {
+  if (loan.status.operation === "repayment" && loan.status.state === "completed") {
     return {
       label: "Repayment",
       status: "confirmed",
@@ -888,7 +895,10 @@ function getLoanDerivedStage(stage: LoanStage, loan: InstantLoan) {
     };
   }
 
-  if (loan.status === "settling") {
+  if (
+    loan.status.operation === "repayment" &&
+    (loan.status.state === "confirming" || loan.status.state === "processing")
+  ) {
     return {
       label: "Repayment",
       status: "processing",
@@ -908,18 +918,18 @@ function getLoanDerivedStage(stage: LoanStage, loan: InstantLoan) {
 function getActivityDescription(activity: Activity): string {
   const confirmationText = formatConfirmations(activity);
 
-  if (activity.txid) {
-    return `${activity.kind} ${activity.status}. Confirmations: ${confirmationText}.`;
+  if (activity.txids?.[0]) {
+    return `${activity.status.operation} ${activity.status.state}. Confirmations: ${confirmationText}.`;
   }
 
-  return `${activity.kind} ${activity.status}. Waiting for transaction details.`;
+  return `${activity.status.operation} ${activity.status.state}. Waiting for transaction details.`;
 }
 
-function findLatestActivity(activities: Activity[], kind: ActivityKindName): Activity | undefined {
+function findLatestActivity(activities: Activity[], operation: ActivityOperation): Activity | undefined {
   let latestActivity: Activity | undefined;
 
   for (const activity of activities) {
-    if (activity.kind !== kind) {
+    if (activity.status.operation !== operation) {
       continue;
     }
 
@@ -942,27 +952,31 @@ function getLoanTone(loan: InstantLoan | null): Tone {
     return "idle";
   }
 
-  if (loan.status === "closed") {
+  if (loan.status.state === "completed") {
     return "success";
   }
 
-  if (loan.status === "awaiting_deposit") {
+  if (loan.status.state === "action_required") {
     return "waiting";
+  }
+
+  if (loan.status.state === "failed" || loan.status.state === "expired") {
+    return "error";
   }
 
   return "working";
 }
 
 function getActivityTone(activity: Activity): Tone {
-  if (activity.status === "failed") {
+  if (activity.status.state === "failed" || activity.status.state === "expired") {
     return "error";
   }
 
-  if (activity.status === "confirmed" || activity.status === "sent") {
+  if (activity.status.state === "completed" || activity.status.state === "active") {
     return "success";
   }
 
-  if (activity.status === "requested") {
+  if (activity.status.state === "action_required") {
     return "waiting";
   }
 
