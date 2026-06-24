@@ -11,6 +11,8 @@ metadata:
 
 `@liquidium/client` reads Liquidium market and position data, then executes authless instant loans and advanced profile-based lending flows.
 
+Current target version: `@liquidium/client` `0.4.0`.
+
 Priority: authless instant loans are the default product flow. Use `client.instantLoans` first, deposit-address profile flows second, and ETH contract interaction only when explicitly needed.
 
 ## Default Decision
@@ -53,7 +55,7 @@ const client = new LiquidiumClient({
 **Config requirements:**
 
 - `environment`: sets the canister preset. Only `mainnet` is bundled; pass `canisterIds` explicitly for custom deployments
-- `apiBaseUrl`: overrides the default Liquidium service root for history, activities, inflow reporting, `instantLoans.create(...)`, and `instantLoans.findByAddress(...)`. It is not needed for `instantLoans.get(...)`, `borrow(...)`, `withdraw(...)`, or default ETH stablecoin deposit-address supply/repay targets
+- `apiBaseUrl`: overrides the default Liquidium service root for history, activities, inflow reporting, `instantLoans.create(...)`, and `instantLoans.find(...)`. It is not needed for direct canister-backed calls such as `borrow(...)`, `withdraw(...)`, or default ETH stablecoin deposit-address supply/repay targets
 - `evmRpcUrl` / `evmPublicClient`: required for lower-level ETH contract-interaction supply planning and allowance polling. Use `evmRpcHeaders` when the RPC provider authenticates with HTTP headers
 - `identity` / `icHost`: custom ICP agent configuration
 - `canisterIds.instantLoans`: defaults to mainnet `qdt2k-xqaaa-aaaae-qkapq-cai`; override it for custom deployments
@@ -86,7 +88,7 @@ the actionable repayment amount when the user wants to close the loan.
 client.instantLoans.create(...);
 client.instantLoans.get({ ref });
 client.instantLoans.get({ loanId });
-client.instantLoans.findByAddress(address);
+client.instantLoans.find(query);
 client.quote.calculateLtv(...); // pure helper for current LTV previews
 ```
 
@@ -103,12 +105,13 @@ not confuse the quote module's `targetLtvBps` with `create(...)`'s `ltvMaxBps`. 
 from chosen borrow and collateral amounts before calling `create(...)`.
 
 `create(...)` and `get(...)` do not require a wallet adapter, profile ID, or
-message signing. The SDK returns deposit and repay targets for the generated
-`profileId`; `get(...)` also returns `position` plus `repayment.amount` for the
-full amount to send to the repayment target, including inflow fee and interest
-buffer.
+message signing. The SDK returns `initialDeposit.amount` and
+`initialDeposit.target` for the collateral transfer, plus `repayment.amount` and
+`repayment.target` for repayment. The returned loan also includes the generated
+`profileId` and `position` state.
 
-`findByAddress(...)` is a recovery helper and returns candidates only. Follow it
+`find(query)` is a recovery helper for short refs, numeric loan id strings,
+addresses, and transaction ids. It returns lightweight candidates only. Follow it
 with `get({ loanId })` or `get({ ref })` before showing canonical loan state.
 
 ### market
@@ -193,12 +196,19 @@ client.positions.getMaxRepayAmount(profileId, poolId, bufferBps?); // full-repay
 
 ### activities
 
-Receipt status and active/completed/all activity lists. Requires `apiBaseUrl`.
+Receipt status and active/completed/all activity lists. Requires the Liquidium SDK API.
 
 ```ts
 client.activities.list({ profileId, filter: "all" });
+client.activities.list({ shortRef, filter: "all" });
 client.activities.getStatus({ profileId, id });
+client.activities.getStatus({ shortRef, id });
 ```
+
+Activities return structured statuses as `activity.status`, with `operation`,
+`state`, `confirmations`, and `requiredConfirmations`. Transaction ids are
+exposed as `activity.txids?: string[]`; do not read legacy top-level `txid`,
+`kind`, `direction`, `confirmations`, or `requiredConfirmations` fields.
 
 ### history
 
@@ -255,7 +265,7 @@ Default app sequence:
 2. Optionally call `client.quote.calculateLtv(...)` to show current LTV and the collateral pool's max allowed LTV.
 3. Call `client.instantLoans.create(...)` with direct base-unit amounts and external destination addresses.
 4. Persist or display `loan.ref` as the primary recovery key.
-5. Show `loan.depositTarget` for collateral deposit and `loan.repayment.target` plus `loan.repayment.amount` for repayment.
+5. Show `loan.initialDeposit.amount` and `loan.initialDeposit.target` for collateral deposit, then `loan.repayment.amount` and `loan.repayment.target` for repayment.
 
 The default instant-loan flow does not need a wallet adapter. The user signs or
 broadcasts only the external wallet transfer to the generated deposit or repay
@@ -290,8 +300,10 @@ const loan = await client.instantLoans.create({
 });
 
 const ref = loan.ref;
-const depositTarget = loan.depositTarget;
-const repayTarget = loan.repayTarget;
+const initialDepositAmount = loan.initialDeposit.amount;
+const initialDepositTarget = loan.initialDeposit.target;
+const repayAmount = loan.repayment.amount;
+const repayTarget = loan.repayment.target;
 ```
 
 Create destinations are external-only. Pass an external address string or an
@@ -307,13 +319,20 @@ account, show `target.account`.
 
 ```ts
 const depositAddress =
-  depositTarget.type === "nativeAddress" ? depositTarget.address : depositTarget.account;
+  initialDepositTarget.type === "nativeAddress"
+    ? initialDepositTarget.address
+    : initialDepositTarget.account;
 ```
 
 Restore a loan by `ref` whenever possible:
 
 ```ts
 const loan = await client.instantLoans.get({ ref: "8Y9AQQ" });
+const initialDepositAmount = loan.initialDeposit.amount;
+const initialDepositAddress =
+  loan.initialDeposit.target.type === "nativeAddress"
+    ? loan.initialDeposit.target.address
+    : loan.initialDeposit.target.account;
 const repayAmount = loan.repayment.amount;
 const repayAddress =
   loan.repayment.target.type === "nativeAddress"
@@ -321,19 +340,20 @@ const repayAddress =
     : loan.repayment.target.account;
 ```
 
-Use address lookup only as recovery when the user lost the loan reference:
+Use `find(...)` only as recovery when the user lost the loan reference or pastes
+an address, transaction id, or loan id:
 
 ```ts
-const candidates = await client.instantLoans.findByAddress("bc1qrefunddestination");
+const candidates = await client.instantLoans.find("bc1qrefunddestination");
 
 const loan = await client.instantLoans.get({
   loanId: candidates[0].loanId,
 });
 ```
 
-Reference lookup is canonical. Address lookup is discovery only: it may return
-multiple candidates and should be followed by `get({ loanId })` or
-`get({ ref })`.
+Reference and loan-id lookup through `get(...)` is canonical. `find(...)` is
+discovery only: it may return multiple candidates and should be followed by
+`get({ loanId })` or `get({ ref })`.
 
 Do not use `client.lending.borrow(...)` for this flow. `lending.borrow(...)` is
 the profile-based signed borrow primitive. Instant loans automate the borrow
