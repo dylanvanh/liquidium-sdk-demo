@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { AssetIcon } from "@/components/asset-icon";
+import { Code2, PackageOpen } from "lucide-react";
 import {
   DEPOSIT_WINDOW_SECONDS,
   InstantLoanRecoveryError,
@@ -77,7 +78,24 @@ export function App() {
         )}
       </main>
       <footer className="footer">
-        <span>SDK 0.5 release candidate</span>
+        <nav className="footer-links" aria-label="Source code">
+          <a
+            href="https://github.com/dylanvanh/liquidium-sdk-demo"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Code2 aria-hidden="true" size={16} />
+            Demo on GitHub
+          </a>
+          <a
+            href="https://github.com/Liquidium-Inc/liquidium-sdk"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <PackageOpen aria-hidden="true" size={16} />
+            Liquidium SDK on GitHub
+          </a>
+        </nav>
         <span>Transactions execute on mainnet. Review wallet prompts carefully.</span>
       </footer>
     </div>

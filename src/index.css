@@ -647,9 +647,47 @@ button:disabled {
   padding: 1.4rem 0;
   border-top: 1px solid var(--border);
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   color: var(--subtle-foreground);
   font-size: 0.72rem;
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.footer-links a {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.7rem;
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: 0 2px 8px oklch(0.22 0.025 190 / 0.12);
+  font-size: 0.75rem;
+  font-weight: 750;
+  text-decoration: none;
+  transition-property: background-color, box-shadow, scale;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+.footer-links a:hover {
+  background: var(--brand-strong);
+  box-shadow: 0 4px 12px oklch(0.22 0.025 190 / 0.18);
+}
+.footer-links a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.footer-links a:active {
+  scale: 0.96;
+}
+.footer-links svg {
+  flex: 0 0 auto;
 }
 
 /* Advanced */
@@ -1216,8 +1254,16 @@ button:disabled {
     padding: 0.8rem;
   }
   .footer {
+    align-items: flex-start;
     flex-direction: column;
-    gap: 0.4rem;
+    gap: 0.75rem;
+  }
+  .footer-links {
+    width: 100%;
+  }
+  .footer-links a {
+    flex: 1 1 10rem;
+    justify-content: center;
   }
   .health-card {
     padding: 1.1rem;

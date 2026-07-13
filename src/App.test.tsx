@@ -152,6 +152,18 @@ afterEach(() => {
 });
 
 describe("product mode navigation", () => {
+  it("links to the demo and Liquidium SDK repositories", () => {
+    render(<App />);
+
+    const demoLink = screen.getByRole("link", { name: "Demo on GitHub" });
+    expect(demoLink.getAttribute("href")).toBe("https://github.com/dylanvanh/liquidium-sdk-demo");
+    expect(demoLink.getAttribute("target")).toBe("_blank");
+    expect(demoLink.getAttribute("rel")).toBe("noopener noreferrer");
+
+    const sdkLink = screen.getByRole("link", { name: "Liquidium SDK on GitHub" });
+    expect(sdkLink.getAttribute("href")).toBe("https://github.com/Liquidium-Inc/liquidium-sdk");
+  });
+
   it("starts in the wallet-free simple flow and loads advanced on demand", async () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: /borrow across chains/i })).toBeTruthy();
