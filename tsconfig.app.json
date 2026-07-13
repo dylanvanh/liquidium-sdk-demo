@@ -9,6 +9,9 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
     "moduleDetection": "force",

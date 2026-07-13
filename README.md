@@ -1,37 +1,43 @@
 # Liquidium SDK Demo
 
-A simple Vite React demo for the Liquidium SDK accountless instant-loan flow.
+A client-side React demo for `@liquidium/client` `0.5.0-rc.0`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
 
-The app shows how to load Liquidium markets, preview an LTV, create an instant loan, and restore an existing loan by short reference.
+## Included flows
 
-## Requirements
+- Accountless instant loans with quote validation, generated deposit and repayment targets, activity polling, and recovery by reference, address, or transaction ID.
+- Native BTC, USDC, and USDT routes plus ICP, ckBTC, ckUSDC, and ckUSDT routes through the SDK's `Chain + Asset` identifiers.
+- Dynamic-connected Ethereum and Bitcoin profiles for supply, borrow, repay, withdraw, and portfolio reads.
+- Manual ICRC transfer instructions with the live ledger fee, exact fee-inclusive wallet debit, copyable account details, and transaction-reference tracking for ICP-chain assets.
+- Typed, chain-aware destination validation for native and ICP delivery routes, including explicit recovery when an instant loan was created but could not be hydrated immediately.
 
-- Node.js compatible with Vite 8
-- pnpm 11.2.2
+The app uses Liquidium's bundled mainnet canisters and service defaults. It does not broadcast transactions during automated tests.
 
-## Run
+## Environment
 
-Install dependencies.
-
-```bash
-pnpm install
-```
-
-Start the dev server.
+Copy `.env.example` to `.env` and set a public Dynamic environment configured with Ethereum and Bitcoin wallet connectors.
 
 ```bash
-pnpm dev
+VITE_DYNAMIC_ENVIRONMENT_ID=
 ```
+
+`VITE_EVM_RPC_URL` and `VITE_INFURA_API_KEY` are optional. The implemented transfer/deposit-address flows do not require an RPC, but the client accepts either value for future contract-interaction work.
+
+Vite environment variables are bundled into browser code; do not put private credentials in them.
 
 ## Commands
 
 ```bash
+pnpm install
+pnpm dev
+pnpm typecheck
+pnpm test
+pnpm lint
 pnpm build
-pnpm preview
 ```
 
-## Project Notes
+## Structure
 
-- `src/App.tsx` contains the demo UI and flow state.
-- `src/liquidium.ts` wraps the Liquidium SDK calls.
-- The demo uses `@liquidium/client` 0.4.x.
+- `src/App.tsx` contains the wallet-free Simple flow and shared shell.
+- `src/AdvancedApp.tsx` is lazy-loaded and contains Dynamic-backed profile flows.
+- `src/liquidium.ts` owns RC request construction, route mapping, and SDK orchestration.
+- `src/dynamic-wallet.ts` adapts Dynamic Ethereum and Bitcoin wallets to the Liquidium `WalletAdapter` interface.
