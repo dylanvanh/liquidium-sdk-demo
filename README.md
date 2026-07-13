@@ -35,6 +35,18 @@ pnpm lint
 pnpm build
 ```
 
+## Container
+
+Build and publish the production image for the homelab's AMD64 and ARM64 nodes. The Vite environment is mounted only for the build step and is bundled into the public client assets.
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --secret id=vite_env,src=.env \
+  --tag ghcr.io/dylanvanh/liquidium-sdk-demo:latest \
+  --push .
+```
+
 ## Structure
 
 - `src/App.tsx` contains the wallet-free Simple flow and shared shell.
