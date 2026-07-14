@@ -176,10 +176,10 @@ function AdvancedWorkspace() {
         {(["supply", "borrow", "portfolio"] as const).map((item) => (
           <Button
             type="button"
-            className={
+            variant={
               tab === item || (item === "portfolio" && (tab === "repay" || tab === "withdraw"))
-                ? "active"
-                : ""
+                ? "secondary"
+                : "ghost"
             }
             key={item}
             onClick={() => setTab(item)}
@@ -213,6 +213,7 @@ function AdvancedWorkspace() {
           </div>
           <Button
             className="primary-action"
+            size="lg"
             type="button"
             onClick={() => void handleCreateProfile()}
           >
@@ -422,7 +423,7 @@ function TransactionComposer(props: {
   return (
     <section className="advanced-composer">
       {props.onBack ? (
-        <Button className="back-action" type="button" onClick={props.onBack}>
+        <Button className="back-action" variant="link" type="button" onClick={props.onBack}>
           ← Back to portfolio
         </Button>
       ) : null}
@@ -495,7 +496,7 @@ function TransactionComposer(props: {
           </label>
           <strong>{route?.displaySymbol}</strong>
           {props.reserve ? (
-            <Button type="button" onClick={() => void useMax()}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => void useMax()}>
               Max
             </Button>
           ) : null}
@@ -529,6 +530,7 @@ function TransactionComposer(props: {
         {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
         <Button
           className="primary-action"
+          size="lg"
           type="submit"
           disabled={
             busy ||
@@ -620,6 +622,7 @@ function FlowReceipt({
       </span>
       <Button
         className="target-address"
+        variant="secondary"
         type="button"
         onClick={() =>
           void navigator.clipboard.writeText(flow.target.address).then(() => setCopied(true))
@@ -643,7 +646,7 @@ function FlowReceipt({
             value={txid}
             onChange={(event) => onTxid(event.target.value)}
           />
-          <Button type="button" disabled={busy || !txid.trim()} onClick={onSubmit}>
+          <Button type="button" size="lg" disabled={busy || !txid.trim()} onClick={onSubmit}>
             Track transfer
           </Button>
         </div>
@@ -709,12 +712,22 @@ function PortfolioView({
               </div>
               <div className="row-actions">
                 {reserve.position.borrowed > 0n ? (
-                  <Button type="button" onClick={() => onAction("repay", reserve)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAction("repay", reserve)}
+                  >
                     Repay
                   </Button>
                 ) : null}
                 {reserve.position.deposited > 0n ? (
-                  <Button type="button" onClick={() => onAction("withdraw", reserve)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAction("withdraw", reserve)}
+                  >
                     Withdraw
                   </Button>
                 ) : null}

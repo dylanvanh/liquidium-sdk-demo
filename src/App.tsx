@@ -54,7 +54,8 @@ export function App() {
         <nav className="mode-nav" aria-label="Product mode">
           {(["simple", "advanced"] as const).map((item) => (
             <Button
-              className={mode === item ? "mode-button active" : "mode-button"}
+              className="mode-button"
+              variant={mode === item ? "secondary" : "ghost"}
               key={item}
               type="button"
               onClick={() => setMode(item)}
@@ -246,6 +247,7 @@ function SimpleLoan() {
         </p>
         <Button
           className="text-action"
+          variant="link"
           type="button"
           onClick={() => setManageOpen((value) => !value)}
         >
@@ -342,6 +344,7 @@ function SimpleLoan() {
           ) : null}
           <Button
             className="primary-action"
+            size="lg"
             type="submit"
             disabled={
               isCreating ||
@@ -506,7 +509,7 @@ function LoanManager({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" size="lg" disabled={busy}>
           {busy ? "Searching…" : "Find loan"}
         </Button>
       </form>
@@ -514,6 +517,7 @@ function LoanManager({
       {results.map((result) => (
         <Button
           className="search-result"
+          variant="secondary"
           type="button"
           key={result.ref}
           onClick={() =>
@@ -566,7 +570,8 @@ function LoanReceipt({
         {depositEntries.map(([chain]) => (
           <Button
             type="button"
-            className={chain === selectedChain ? "active" : ""}
+            size="sm"
+            variant={chain === selectedChain ? "secondary" : "ghost"}
             key={chain}
             onClick={() => onChain(chain)}
           >
@@ -619,6 +624,7 @@ function TargetBlock({
         <small>{target.chain === Chain.ICP ? "ICRC account" : `${target.chain} address`}</small>
         <Button
           type="button"
+          variant="secondary"
           onClick={() =>
             void navigator.clipboard.writeText(target.address).then(() => {
               setCopied(true);
