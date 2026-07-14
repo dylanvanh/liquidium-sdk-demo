@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./AdvancedApp", () => ({ default: () => <div>Advanced wallet workspace</div> }));
+vi.mock("./InsightsApp", () => ({ default: () => <div>Live market insights</div> }));
 vi.mock("./liquidium", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./liquidium")>();
   return {
@@ -170,6 +171,9 @@ describe("product mode navigation", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
     expect(await screen.findByText("Advanced wallet workspace")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Insights" }));
+    expect(await screen.findByText("Live market insights")).toBeTruthy();
   });
 
   it("switches the collateral picker between native and ICP routes", async () => {

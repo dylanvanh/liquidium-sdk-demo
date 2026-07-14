@@ -37,7 +37,8 @@ import {
 } from "./liquidium";
 
 const AdvancedApp = lazy(() => import("./AdvancedApp"));
-type AppMode = "simple" | "advanced";
+const InsightsApp = lazy(() => import("./InsightsApp"));
+type AppMode = "simple" | "advanced" | "insights";
 
 export function App() {
   const [mode, setMode] = useState<AppMode>("simple");
@@ -52,7 +53,7 @@ export function App() {
           <span>liquidium-sdk-demo</span>
         </a>
         <nav className="mode-nav" aria-label="Product mode">
-          {(["simple", "advanced"] as const).map((item) => (
+          {(["simple", "advanced", "insights"] as const).map((item) => (
             <Button
               className="mode-button"
               variant={mode === item ? "secondary" : "ghost"}
@@ -60,7 +61,7 @@ export function App() {
               type="button"
               onClick={() => setMode(item)}
             >
-              {item === "simple" ? "Simple loan" : "Advanced"}
+              {item === "simple" ? "Simple loan" : item === "advanced" ? "Advanced" : "Insights"}
             </Button>
           ))}
         </nav>
@@ -72,9 +73,13 @@ export function App() {
       <main id="workspace" className="workspace">
         {mode === "simple" ? (
           <SimpleLoan />
-        ) : (
+        ) : mode === "advanced" ? (
           <Suspense fallback={<AdvancedSkeleton />}>
             <AdvancedApp />
+          </Suspense>
+        ) : (
+          <Suspense fallback={<InsightsSkeleton />}>
+            <InsightsApp />
           </Suspense>
         )}
       </main>
@@ -692,6 +697,23 @@ function AdvancedSkeleton() {
       <div className="skeleton wide" />
       <div className="skeleton card" />
       <div className="skeleton card" />
+    </section>
+  );
+}
+
+function InsightsSkeleton() {
+  return (
+    <section className="insights-view" aria-label="Loading market insights">
+      <div className="skeleton-line skeleton-heading" />
+      <div className="insight-metrics">
+        <div className="skeleton-panel" />
+        <div className="skeleton-panel" />
+        <div className="skeleton-panel" />
+      </div>
+      <div className="insight-charts">
+        <div className="skeleton-panel skeleton-chart" />
+        <div className="skeleton-panel skeleton-chart" />
+      </div>
     </section>
   );
 }
