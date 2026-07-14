@@ -137,6 +137,7 @@ const recoveredLoan = {
 } as SimpleLoan;
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   mocks.fetchMarketData.mockResolvedValue({ pools: [btcPool, usdcPool], prices: {}, routes });
   mocks.findLoans.mockResolvedValue([]);
   mocks.fetchLoanTracking.mockResolvedValue({
@@ -174,6 +175,21 @@ describe("product mode navigation", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Insights" }));
     expect(await screen.findByText("Live market insights")).toBeTruthy();
+    expect(window.location.pathname).toBe("/insights");
+  });
+
+  it("opens insights directly from the insights path", async () => {
+    // given
+    window.history.replaceState(null, "", "/insights");
+
+    // when
+    render(<App />);
+
+    // then
+    expect(await screen.findByText("Live market insights")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Insights" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
   });
 
   it("switches the collateral picker between native and ICP routes", async () => {

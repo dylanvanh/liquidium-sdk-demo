@@ -39,9 +39,27 @@ import {
 const AdvancedApp = lazy(() => import("./AdvancedApp"));
 const InsightsApp = lazy(() => import("./InsightsApp"));
 type AppMode = "simple" | "advanced" | "insights";
+const APP_MODE_PATHS: Record<AppMode, string> = {
+  simple: "/",
+  advanced: "/advanced",
+  insights: "/insights",
+};
 
 export function App() {
-  const [mode, setMode] = useState<AppMode>("simple");
+  const [mode, setMode] = useState<AppMode>(() => getAppModeFromPathname(window.location.pathname));
+
+  useEffect(() => {
+    const handlePopState = () => setMode(getAppModeFromPathname(window.location.pathname));
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function navigateToMode(nextMode: AppMode) {
+    const nextPath = APP_MODE_PATHS[nextMode];
+    if (window.location.pathname !== nextPath) window.history.pushState(null, "", nextPath);
+    setMode(nextMode);
+  }
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#workspace">
@@ -57,9 +75,10 @@ export function App() {
             <Button
               className="mode-button"
               variant={mode === item ? "secondary" : "ghost"}
+              aria-current={mode === item ? "page" : undefined}
               key={item}
               type="button"
-              onClick={() => setMode(item)}
+              onClick={() => navigateToMode(item)}
             >
               {item === "simple" ? "Simple loan" : item === "advanced" ? "Advanced" : "Insights"}
             </Button>
@@ -106,6 +125,13 @@ export function App() {
       </footer>
     </div>
   );
+}
+
+function getAppModeFromPathname(pathname: string): AppMode {
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
+  if (normalizedPathname === APP_MODE_PATHS.advanced) return "advanced";
+  if (normalizedPathname === APP_MODE_PATHS.insights) return "insights";
+  return "simple";
 }
 
 function SimpleLoan() {
