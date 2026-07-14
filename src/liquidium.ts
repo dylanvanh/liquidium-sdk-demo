@@ -1,7 +1,7 @@
 import {
   Asset,
   Chain,
-  InstantLoanCreatedError,
+  SimpleLoanCreatedError,
   LiquidiumAccountType,
   LiquidiumClient,
   RATE_DECIMALS,
@@ -11,14 +11,14 @@ import {
   type Activity,
   type AssetIdentifier,
   type AssetPrices,
-  type CreateInstantLoanRequest,
-  type InstantLoan,
-  type InstantLoanFindResult,
+  type CreateSimpleLoanRequest,
   type LiquidiumAccountInput,
   type LiquidiumStatus,
   type LtvCalculation,
   type OutflowDetails,
   type Pool,
+  type SimpleLoan,
+  type SimpleLoanFindResult,
   type SupplyFlow,
   type UserPositionSummary,
   type UserReserve,
@@ -51,7 +51,7 @@ export type QuoteState =
   | { status: "empty" | "error"; message: string };
 
 export type LoanTracking = {
-  loan: InstantLoan;
+  loan: SimpleLoan;
   activities: Activity[];
   activityError: string | null;
 };
@@ -74,7 +74,7 @@ export class InstantLoanRecoveryError extends Error {
   readonly ref: string;
   readonly cause: unknown;
 
-  constructor(createdError: InstantLoanCreatedError, cause: unknown) {
+  constructor(createdError: SimpleLoanCreatedError, cause: unknown) {
     super(`Loan ${createdError.ref} was created, but its current state could not be loaded.`);
     this.name = "InstantLoanRecoveryError";
     this.loanId = createdError.loanId;
@@ -234,10 +234,10 @@ export async function createInstantLoan(params: {
   quote: Extract<QuoteState, { status: "ready" }>;
   borrowDestination: string;
   refundDestination: string;
-}): Promise<InstantLoan> {
+}): Promise<SimpleLoan> {
   const { collateralRoute, borrowRoute, quote, borrowDestination, refundDestination } = params;
   try {
-    return await client.instantLoans.create(
+    return await client.simpleLoans.create(
       buildInstantLoanRequest({
         collateralRoute,
         borrowRoute,
@@ -247,16 +247,16 @@ export async function createInstantLoan(params: {
       }),
     );
   } catch (error) {
-    if (error instanceof InstantLoanCreatedError) return await recoverCreatedInstantLoan(error);
+    if (error instanceof SimpleLoanCreatedError) return await recoverCreatedInstantLoan(error);
     throw error;
   }
 }
 
 export async function recoverCreatedInstantLoan(
-  error: InstantLoanCreatedError,
-  load: (loanId: bigint) => Promise<InstantLoan> = async (loanId) =>
-    await client.instantLoans.get({ loanId }),
-): Promise<InstantLoan> {
+  error: SimpleLoanCreatedError,
+  load: (loanId: bigint) => Promise<SimpleLoan> = async (loanId) =>
+    await client.simpleLoans.get({ loanId }),
+): Promise<SimpleLoan> {
   try {
     return await load(error.loanId);
   } catch (cause) {
@@ -265,7 +265,7 @@ export async function recoverCreatedInstantLoan(
 }
 
 export function getRecoverableInstantLoanId(error: unknown): bigint | null {
-  return error instanceof InstantLoanCreatedError ? error.loanId : null;
+  return error instanceof SimpleLoanCreatedError ? error.loanId : null;
 }
 
 export function buildInstantLoanRequest(params: {
@@ -274,7 +274,7 @@ export function buildInstantLoanRequest(params: {
   quote: Extract<QuoteState, { status: "ready" }>;
   borrowDestination: string;
   refundDestination: string;
-}): CreateInstantLoanRequest {
+}): CreateSimpleLoanRequest {
   const { collateralRoute, borrowRoute, quote, borrowDestination, refundDestination } = params;
   return {
     collateral: {
@@ -288,7 +288,7 @@ export function buildInstantLoanRequest(params: {
       chain: borrowRoute.chain,
       amount: quote.borrowAmount,
       destination: buildTypedDestination(borrowRoute, borrowDestination),
-    } as CreateInstantLoanRequest["borrow"],
+    } as CreateSimpleLoanRequest["borrow"],
     refund: {
       chain: collateralRoute.chain,
       destination: buildTypedDestination(collateralRoute, refundDestination),
@@ -299,7 +299,7 @@ export function buildInstantLoanRequest(params: {
 }
 
 export async function fetchLoanTracking(identifier: string | bigint): Promise<LoanTracking> {
-  const loan = await client.instantLoans.get(
+  const loan = await client.simpleLoans.get(
     typeof identifier === "bigint" ? { loanId: identifier } : { ref: identifier.trim() },
   );
   const activitiesResult = await Promise.allSettled([
@@ -316,8 +316,8 @@ export async function fetchLoanTracking(identifier: string | bigint): Promise<Lo
   };
 }
 
-export async function findLoans(query: string): Promise<InstantLoanFindResult[]> {
-  return await client.instantLoans.find(query.trim());
+export async function findLoans(query: string): Promise<SimpleLoanFindResult[]> {
+  return await client.simpleLoans.find(query.trim());
 }
 
 export async function resolveProfile(walletAddress: string): Promise<string | null> {

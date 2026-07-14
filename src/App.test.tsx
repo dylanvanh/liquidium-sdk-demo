@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   Asset,
   Chain,
-  InstantLoanCreatedError,
-  type InstantLoan,
-  type InstantLoanFindResult,
+  SimpleLoanCreatedError,
+  type SimpleLoan,
+  type SimpleLoanFindResult,
   type Pool,
 } from "@liquidium/client";
 import { InstantLoanRecoveryError } from "./liquidium";
@@ -133,7 +133,7 @@ const recoveredLoan = {
     debtInterestAmount: 0n,
     totalDebtAmount: 25_000_000n,
   },
-} as InstantLoan;
+} as SimpleLoan;
 
 beforeEach(() => {
   mocks.fetchMarketData.mockResolvedValue({ pools: [btcPool, usdcPool], prices: {}, routes });
@@ -193,7 +193,7 @@ describe("product mode navigation", () => {
         profileId: "aaaaa-aa",
         collateral: { poolId: btcPool.id, asset: Asset.BTC, amount: 100_000n },
         borrow: { poolId: usdcPool.id, asset: Asset.USDC },
-      } as InstantLoanFindResult,
+      } as SimpleLoanFindResult,
     ]);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /find an existing loan/i }));
@@ -208,7 +208,7 @@ describe("product mode navigation", () => {
   });
 
   it("preserves an already-created loan reference and blocks duplicate creation", async () => {
-    const createdError = new InstantLoanCreatedError(7n, new Error("first hydration failed"));
+    const createdError = new SimpleLoanCreatedError(7n, new Error("first hydration failed"));
     const recovery = new InstantLoanRecoveryError(
       createdError,
       new Error("second hydration failed"),

@@ -2,8 +2,8 @@ import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from "re
 import {
   Chain,
   type Activity,
-  type InstantLoan,
-  type InstantLoanFindResult,
+  type SimpleLoan,
+  type SimpleLoanFindResult,
   type SupplyTarget,
 } from "@liquidium/client";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,7 @@ function SimpleLoan() {
   const [borrowInput, setBorrowInput] = useState("25");
   const [borrowDestination, setBorrowDestination] = useState("");
   const [refundDestination, setRefundDestination] = useState("");
-  const [loan, setLoan] = useState<InstantLoan | null>(null);
+  const [loan, setLoan] = useState<SimpleLoan | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedCollateralChain, setSelectedCollateralChain] = useState<
     typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP
@@ -476,7 +476,7 @@ function LoanManager({
   onLoaded: (tracking: Awaited<ReturnType<typeof fetchLoanTracking>>) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<InstantLoanFindResult[]>([]);
+  const [results, setResults] = useState<SimpleLoanFindResult[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function search(event: FormEvent) {
@@ -542,7 +542,7 @@ function LoanReceipt({
   selectedChain,
   onChain,
 }: {
-  loan: InstantLoan;
+  loan: SimpleLoan;
   activities: Activity[];
   selectedChain: typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP;
   onChain: (chain: typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP) => void;

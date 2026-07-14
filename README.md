@@ -1,14 +1,14 @@
 # Liquidium SDK Demo
 
-A client-side React demo for `@liquidium/client` `0.5.0-rc.0`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
+A client-side React demo for `@liquidium/client` `0.5.0-rc.1`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
 
 ## Included flows
 
-- Accountless instant loans with quote validation, generated deposit and repayment targets, activity polling, and recovery by reference, address, or transaction ID.
+- Accountless Simple Loans with quote validation, generated deposit and repayment targets, activity polling, and recovery by reference, address, or transaction ID.
 - Native BTC, USDC, and USDT routes plus ICP, ckBTC, ckUSDC, and ckUSDT routes through the SDK's `Chain + Asset` identifiers.
 - Dynamic-connected Ethereum and Bitcoin profiles for supply, borrow, repay, withdraw, and portfolio reads.
 - Manual ICRC transfer instructions with the live ledger fee, exact fee-inclusive wallet debit, copyable account details, and transaction-reference tracking for ICP-chain assets.
-- Typed, chain-aware destination validation for native and ICP delivery routes, including explicit recovery when an instant loan was created but could not be hydrated immediately.
+- Typed, chain-aware destination validation for native and ICP delivery routes, including explicit recovery when a Simple Loan was created but could not be hydrated immediately.
 
 The app uses Liquidium's bundled mainnet canisters and service defaults. It does not broadcast transactions during automated tests.
 

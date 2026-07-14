@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   Asset,
   Chain,
-  InstantLoanCreatedError,
+  SimpleLoanCreatedError,
   LiquidiumAccountType,
-  type InstantLoan,
+  type SimpleLoan,
   type Pool,
 } from "@liquidium/client";
 import {
@@ -150,14 +150,14 @@ describe("instant-loan RC request", () => {
   });
 
   it("retains the created loan id when hydration fails", () => {
-    const error = new InstantLoanCreatedError(42n, new Error("hydrate failed"));
+    const error = new SimpleLoanCreatedError(42n, new Error("hydrate failed"));
     expect(getRecoverableInstantLoanId(error)).toBe(42n);
     expect(getRecoverableInstantLoanId(new Error("other"))).toBeNull();
   });
 
   it("loads an already-created loan without creating again and preserves its reference on failure", async () => {
-    const created = new InstantLoanCreatedError(42n, new Error("hydrate failed"));
-    const loan = { loanId: 42n } as InstantLoan;
+    const created = new SimpleLoanCreatedError(42n, new Error("hydrate failed"));
+    const loan = { loanId: 42n } as SimpleLoan;
     await expect(
       recoverCreatedInstantLoan(created, async (loanId) => {
         expect(loanId).toBe(42n);
