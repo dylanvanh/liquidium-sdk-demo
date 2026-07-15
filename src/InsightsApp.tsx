@@ -12,6 +12,7 @@ import { Tooltip } from "@/components/dither-kit/tooltip";
 import { XAxis } from "@/components/dither-kit/x-axis";
 import { YAxis } from "@/components/dither-kit/y-axis";
 import { Button } from "@/components/ui/button";
+import { InsightsLoading } from "@/components/insights-loading";
 import {
   fetchMarketData,
   formatBaseUnits,
@@ -277,27 +278,5 @@ function InsightMetric({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <small>Live pool sum</small>
     </article>
-  );
-}
-
-function InsightsLoading() {
-  return (
-    <section className="insights-view" aria-label="Loading market insights">
-      <div className="insights-heading">
-        <div>
-          <p className="eyebrow">Protocol pulse</p>
-          <h1>Loading markets…</h1>
-        </div>
-      </div>
-      <div className="insight-metrics">
-        <div className="skeleton-panel" />
-        <div className="skeleton-panel" />
-        <div className="skeleton-panel" />
-      </div>
-      <div className="insight-charts">
-        <div className="skeleton-panel skeleton-chart" />
-        <div className="skeleton-panel skeleton-chart" />
-      </div>
-    </section>
   );
 }

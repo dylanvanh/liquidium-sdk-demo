@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { AssetIcon } from "@/components/asset-icon";
-import { Code2, PackageOpen } from "lucide-react";
+import { AdvancedLoading } from "@/components/advanced-loading";
+import { InsightsLoading } from "@/components/insights-loading";
+import { Code2, PackageOpen, RefreshCw } from "lucide-react";
 import {
   DEPOSIT_WINDOW_SECONDS,
   InstantLoanRecoveryError,
@@ -93,11 +95,11 @@ export function App() {
         {mode === "simple" ? (
           <SimpleLoan />
         ) : mode === "advanced" ? (
-          <Suspense fallback={<AdvancedSkeleton />}>
+          <Suspense fallback={<AdvancedLoading />}>
             <AdvancedApp />
           </Suspense>
         ) : (
-          <Suspense fallback={<InsightsSkeleton />}>
+          <Suspense fallback={<InsightsLoading />}>
             <InsightsApp />
           </Suspense>
         )}
@@ -318,6 +320,7 @@ function SimpleLoan() {
             value={collateralInput}
             routeKeyValue={collateralKey}
             routes={market?.routes ?? []}
+            loading={!market && !marketError}
             onValue={setCollateralInput}
             onRoute={setCollateralKey}
           />
@@ -329,6 +332,7 @@ function SimpleLoan() {
             value={borrowInput}
             routeKeyValue={borrowKey}
             routes={market?.routes ?? []}
+            loading={!market && !marketError}
             onValue={setBorrowInput}
             onRoute={setBorrowKey}
           />
@@ -358,7 +362,7 @@ function SimpleLoan() {
             />
           </div>
 
-          <QuoteStrip quote={quote} />
+          <QuoteStrip quote={quote} loading={!market && !marketError} />
           {message || marketError ? (
             <InlineNotice tone="error">{message ?? marketError}</InlineNotice>
           ) : null}
@@ -393,7 +397,7 @@ function SimpleLoan() {
                 ? "Loan already created"
                 : market
                   ? "Create simple loan"
-                  : "Loading markets…"}
+                  : "Waiting for live routes"}
           </Button>
         </form>
 
@@ -415,6 +419,7 @@ function AmountPanel(props: {
   value: string;
   routeKeyValue: string;
   routes: AssetRoute[];
+  loading: boolean;
   onValue: (value: string) => void;
   onRoute: (value: string) => void;
 }) {
@@ -443,10 +448,13 @@ function AmountPanel(props: {
           <NativeSelect
             aria-label={`${props.label} asset`}
             value={props.routeKeyValue}
+            disabled={props.loading}
             onChange={(event) => props.onRoute(event.target.value)}
           >
             {!visibleRoutes.some((route) => routeKey(route) === props.routeKeyValue) ? (
-              <option value={props.routeKeyValue}>{selectedRoute?.displaySymbol ?? "Asset"}</option>
+              <option value={props.routeKeyValue}>
+                {selectedRoute?.displaySymbol ?? (props.loading ? "Loading routes…" : "Asset")}
+              </option>
             ) : null}
             {visibleRoutes.map((route) => (
               <option key={routeKey(route)} value={routeKey(route)}>
@@ -459,6 +467,7 @@ function AmountPanel(props: {
       <label className="icp-toggle">
         <Switch
           checked={showIcp}
+          disabled={props.loading}
           onCheckedChange={(checked) => {
             setShowIcp(checked);
             const next = props.routes.find((route) =>
@@ -473,7 +482,28 @@ function AmountPanel(props: {
   );
 }
 
-function QuoteStrip({ quote }: { quote: ReturnType<typeof buildQuoteState> }) {
+function QuoteStrip({
+  quote,
+  loading,
+}: {
+  quote: ReturnType<typeof buildQuoteState>;
+  loading: boolean;
+}) {
+  if (loading)
+    return (
+      <div className="quote-strip quote-strip-loading" role="status">
+        {(["Loan-to-value", "Max LTV", "Borrow value"] as const).map((label) => (
+          <div key={label}>
+            <span>{label}</span>
+            <i className="loading-placeholder medium" aria-hidden="true" />
+          </div>
+        ))}
+        <p>
+          <RefreshCw aria-hidden="true" className="is-spinning" />
+          Fetching live pool rates
+        </p>
+      </div>
+    );
   if (quote.status !== "ready")
     return (
       <div className="quote-strip muted">
@@ -714,32 +744,5 @@ export function InlineNotice({
     <div className={`notice ${tone}`} role={tone === "error" ? "alert" : "status"}>
       {children}
     </div>
-  );
-}
-
-function AdvancedSkeleton() {
-  return (
-    <section className="advanced-skeleton" aria-label="Loading advanced lending">
-      <div className="skeleton wide" />
-      <div className="skeleton card" />
-      <div className="skeleton card" />
-    </section>
-  );
-}
-
-function InsightsSkeleton() {
-  return (
-    <section className="insights-view" aria-label="Loading market insights">
-      <div className="skeleton-line skeleton-heading" />
-      <div className="insight-metrics">
-        <div className="skeleton-panel" />
-        <div className="skeleton-panel" />
-        <div className="skeleton-panel" />
-      </div>
-      <div className="insight-charts">
-        <div className="skeleton-panel skeleton-chart" />
-        <div className="skeleton-panel skeleton-chart" />
-      </div>
-    </section>
   );
 }

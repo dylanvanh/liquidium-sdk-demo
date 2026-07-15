@@ -24,6 +24,11 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { AssetIcon } from "@/components/asset-icon";
+import {
+  AdvancedComposerLoading,
+  AdvancedPortfolioLoading,
+  AdvancedProfileLoading,
+} from "@/components/advanced-loading";
 import { InlineNotice } from "./App";
 import { getConnectedWallet } from "./dynamic-wallet";
 import {
@@ -200,7 +205,7 @@ function AdvancedWorkspace() {
       {!wallet ? (
         <ConnectState />
       ) : profileLoading ? (
-        <ProfileSkeleton />
+        <AdvancedProfileLoading />
       ) : !profileId ? (
         <section className="profile-state">
           <div>
@@ -221,7 +226,11 @@ function AdvancedWorkspace() {
           </Button>
         </section>
       ) : !market ? (
-        <ProfileSkeleton />
+        tab === "portfolio" ? (
+          <AdvancedPortfolioLoading />
+        ) : (
+          <AdvancedComposerLoading />
+        )
       ) : (
         <div className="advanced-content">
           {tab === "supply" ? (
@@ -662,7 +671,7 @@ function PortfolioView({
   portfolio: PortfolioData | null;
   onAction: (action: "repay" | "withdraw", reserve: UserReserve) => void;
 }) {
-  if (!portfolio) return <ProfileSkeleton />;
+  if (!portfolio) return <AdvancedPortfolioLoading />;
   const active = portfolio.reserves.filter(
     (item) => item.position.deposited > 0n || item.position.borrowed > 0n,
   );
@@ -866,13 +875,5 @@ function ConnectState() {
       </div>
       <DynamicWidget />
     </section>
-  );
-}
-function ProfileSkeleton() {
-  return (
-    <div className="profile-skeleton">
-      <div className="skeleton line" />
-      <div className="skeleton card" />
-    </div>
   );
 }
