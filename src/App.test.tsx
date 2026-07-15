@@ -137,7 +137,7 @@ const recoveredLoan = {
 } as SimpleLoan;
 
 beforeEach(() => {
-  window.history.replaceState(null, "", "/");
+  window.history.replaceState(null, "", "/simple-loan");
   mocks.fetchMarketData.mockResolvedValue({ pools: [btcPool, usdcPool], prices: {}, routes });
   mocks.findLoans.mockResolvedValue([]);
   mocks.fetchLoanTracking.mockResolvedValue({
@@ -166,19 +166,27 @@ describe("product mode navigation", () => {
     expect(sdkLink.getAttribute("href")).toBe("https://github.com/Liquidium-Inc/liquidium-sdk");
   });
 
-  it("starts in the wallet-free simple flow and loads advanced on demand", async () => {
+  it("starts with market insights and keeps each product mode directly addressable", async () => {
+    window.history.replaceState(null, "", "/");
     render(<App />);
+    expect(await screen.findByText("Live market insights")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Insights" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Simple loan" }));
     expect(screen.getByRole("heading", { name: /borrow across chains/i })).toBeTruthy();
+    expect(window.location.pathname).toBe("/simple-loan");
 
     fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
     expect(await screen.findByText("Advanced wallet workspace")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Insights" }));
     expect(await screen.findByText("Live market insights")).toBeTruthy();
-    expect(window.location.pathname).toBe("/insights");
+    expect(window.location.pathname).toBe("/");
   });
 
-  it("opens insights directly from the insights path", async () => {
+  it("keeps the previous insights path working", async () => {
     // given
     window.history.replaceState(null, "", "/insights");
 

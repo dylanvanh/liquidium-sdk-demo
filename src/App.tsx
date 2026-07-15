@@ -43,9 +43,9 @@ const AdvancedApp = lazy(() => import("./AdvancedApp"));
 const InsightsApp = lazy(() => import("./InsightsApp"));
 type AppMode = "simple" | "advanced" | "insights";
 const APP_MODE_PATHS: Record<AppMode, string> = {
-  simple: "/",
+  simple: "/simple-loan",
   advanced: "/advanced",
-  insights: "/insights",
+  insights: "/",
 };
 
 export function App() {
@@ -74,7 +74,7 @@ export function App() {
           <span>liquidium-sdk-demo</span>
         </a>
         <nav className="mode-nav" aria-label="Product mode">
-          {(["simple", "advanced", "insights"] as const).map((item) => (
+          {(["insights", "simple", "advanced"] as const).map((item) => (
             <Button
               className="mode-button"
               variant={mode === item ? "secondary" : "ghost"}
@@ -133,8 +133,8 @@ export function App() {
 function getAppModeFromPathname(pathname: string): AppMode {
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
   if (normalizedPathname === APP_MODE_PATHS.advanced) return "advanced";
-  if (normalizedPathname === APP_MODE_PATHS.insights) return "insights";
-  return "simple";
+  if (normalizedPathname === APP_MODE_PATHS.simple) return "simple";
+  return "insights";
 }
 
 function SimpleLoan() {
