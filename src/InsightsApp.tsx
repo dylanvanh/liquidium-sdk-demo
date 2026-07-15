@@ -13,6 +13,7 @@ import { XAxis } from "@/components/dither-kit/x-axis";
 import { YAxis } from "@/components/dither-kit/y-axis";
 import { Button } from "@/components/ui/button";
 import { InsightsLoading } from "@/components/insights-loading";
+import { toast } from "sonner";
 import {
   fetchMarketData,
   formatBaseUnits,
@@ -63,7 +64,12 @@ export default function InsightsApp() {
         setMarket(data);
         setUpdatedAt(new Date());
       })
-      .catch((cause) => !cancelled && setError(getErrorMessage(cause)))
+      .catch((cause) => {
+        if (cancelled) return;
+        const message = getErrorMessage(cause);
+        setError(message);
+        toast.error(message, { id: "insights-market-error" });
+      })
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -138,10 +144,6 @@ export default function InsightsApp() {
           </Button>
         </div>
       </header>
-
-      {error ? (
-        <p className="insights-warning">Showing the previous snapshot. Refresh failed: {error}</p>
-      ) : null}
 
       <div className="insight-metrics" aria-label="Protocol totals">
         <InsightMetric label="Total supplied" value={formatCompactUsd(totals.supplied)} />

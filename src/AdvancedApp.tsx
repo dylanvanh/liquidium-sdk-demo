@@ -14,6 +14,7 @@ import {
   type UserReserve,
 } from "@liquidium/client";
 import { ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -100,13 +101,14 @@ function AdvancedWorkspace() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedReserve, setSelectedReserve] = useState<UserReserve | null>(null);
 
   useEffect(() => {
     fetchMarketData()
       .then(setMarket)
-      .catch((cause) => setError(getErrorMessage(cause)));
+      .catch((cause) =>
+        toast.error(getErrorMessage(cause), { id: "advanced-market-error" }),
+      );
   }, []);
 
   useEffect(() => {
@@ -119,7 +121,11 @@ function AdvancedWorkspace() {
       .then((id) => {
         if (!cancelled) setProfileId(id);
       })
-      .catch((cause) => !cancelled && setError(getErrorMessage(cause)))
+      .catch(
+        (cause) =>
+          !cancelled &&
+          toast.error(getErrorMessage(cause), { id: "profile-resolution-error" }),
+      )
       .finally(() => !cancelled && setProfileLoading(false));
     return () => {
       cancelled = true;
@@ -131,7 +137,7 @@ function AdvancedWorkspace() {
     try {
       setPortfolio(await fetchPortfolio(profileId));
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause), { id: "portfolio-refresh-error" });
     }
   }, [profileId]);
 
@@ -142,10 +148,14 @@ function AdvancedWorkspace() {
     return () => window.clearInterval(id);
   }, [profileId, refreshPortfolio]);
 
+  useEffect(() => {
+    if (portfolio?.activityError)
+      toast.error(portfolio.activityError, { id: "portfolio-activity-error" });
+  }, [portfolio?.activityError]);
+
   async function handleCreateProfile() {
     if (!wallet) return;
     setProfileLoading(true);
-    setError(null);
     try {
       const id = await createProfile({
         account: wallet.address,
@@ -156,7 +166,7 @@ function AdvancedWorkspace() {
     } catch (cause) {
       const existing = await resolveProfile(wallet.address).catch(() => null);
       if (existing) setProfileId(existing);
-      else setError(getErrorMessage(cause));
+      else toast.error(getErrorMessage(cause));
     } finally {
       setProfileLoading(false);
     }
@@ -199,9 +209,6 @@ function AdvancedWorkspace() {
         profileId={profileId}
         loading={Boolean(profileId && !portfolio)}
       />
-      {portfolio?.activityError ? <InlineNotice>{portfolio.activityError}</InlineNotice> : null}
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-
       {!wallet ? (
         <ConnectState />
       ) : profileLoading ? (
@@ -300,7 +307,6 @@ function TransactionComposer(props: {
   const [amount, setAmount] = useState("");
   const [destination, setDestination] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [supplyFlow, setSupplyFlow] = useState<SupplyFlow | null>(null);
   const [inflowQuote, setInflowQuote] = useState<InflowQuote | null>(null);
   const [outflow, setOutflow] = useState<OutflowDetails | null>(null);
@@ -339,7 +345,6 @@ function TransactionComposer(props: {
   async function useMax() {
     if (!props.reserve || !route) return;
     setBusy(true);
-    setError(null);
     try {
       const value =
         props.mode === "repay"
@@ -347,7 +352,7 @@ function TransactionComposer(props: {
           : await getMaxWithdraw(props.profileId, route.poolId);
       setAmount(formatBaseUnits(value, route.decimals, Number(route.decimals)));
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -357,7 +362,6 @@ function TransactionComposer(props: {
     event.preventDefault();
     if (!route) return;
     setBusy(true);
-    setError(null);
     setSupplyFlow(null);
     setInflowQuote(null);
     setOutflow(null);
@@ -409,7 +413,7 @@ function TransactionComposer(props: {
         if (flow.txid) await props.onComplete();
       }
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -418,12 +422,11 @@ function TransactionComposer(props: {
   async function submitTxid() {
     if (!supplyFlow || !txid.trim()) return;
     setBusy(true);
-    setError(null);
     try {
       await submitManualSupply(supplyFlow, txid);
       await props.onComplete();
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -536,7 +539,6 @@ function TransactionComposer(props: {
             the transaction reference below.
           </InlineNotice>
         ) : null}
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
         <Button
           className="primary-action"
           size="lg"

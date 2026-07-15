@@ -1208,15 +1208,6 @@ select {
 .is-spinning {
   animation: spin 0.8s linear infinite;
 }
-.insights-warning {
-  margin: 0;
-  padding: 0.75rem 1rem;
-  border: 1px solid color-mix(in oklch, var(--destructive) 45%, var(--border));
-  border-radius: 0.8rem;
-  background: color-mix(in oklch, var(--destructive) 8%, var(--card));
-  color: var(--destructive-foreground);
-  font-size: 0.78rem;
-}
 .insight-metrics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

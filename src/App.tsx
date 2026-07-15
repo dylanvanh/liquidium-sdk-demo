@@ -15,6 +15,7 @@ import { AssetIcon } from "@/components/asset-icon";
 import { AdvancedLoading } from "@/components/advanced-loading";
 import { InsightsLoading } from "@/components/insights-loading";
 import { Code2, PackageOpen, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
   DEPOSIT_WINDOW_SECONDS,
   InstantLoanRecoveryError,
@@ -150,7 +151,6 @@ function SimpleLoan() {
   const [selectedCollateralChain, setSelectedCollateralChain] = useState<
     typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP
   >(Chain.BTC);
-  const [message, setMessage] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [createdLoanRecovery, setCreatedLoanRecovery] = useState<InstantLoanRecoveryError | null>(
     null,
@@ -167,7 +167,12 @@ function SimpleLoan() {
         if (!getRoute(data.routes, borrowKey))
           setBorrowKey(routeKey(data.routes[1] ?? data.routes[0]));
       })
-      .catch((error) => !cancelled && setMarketError(getErrorMessage(error)));
+      .catch((error) => {
+        if (cancelled) return;
+        const message = getErrorMessage(error);
+        setMarketError(message);
+        toast.error(message, { id: "simple-market-error" });
+      });
     return () => {
       cancelled = true;
     };
@@ -180,9 +185,12 @@ function SimpleLoan() {
         .then((tracking) => {
           setLoan(tracking.loan);
           setActivities(tracking.activities);
-          if (tracking.activityError) setMessage(tracking.activityError);
+          if (tracking.activityError)
+            toast.error(tracking.activityError, { id: `loan-${loan.ref}-activity-error` });
         })
-        .catch((error) => setMessage(getErrorMessage(error)));
+        .catch((error) =>
+          toast.error(getErrorMessage(error), { id: `loan-${loan.ref}-tracking-error` }),
+        );
     };
     const id = window.setInterval(refresh, POLL_INTERVAL_MS);
     return () => window.clearInterval(id);
@@ -215,11 +223,10 @@ function SimpleLoan() {
     event.preventDefault();
     if (!collateralRoute || !borrowRoute || quote.status !== "ready") return;
     if (quote.ltv.validationErrors.length) {
-      setMessage(formatQuoteErrors(quote.ltv));
+      toast.error(formatQuoteErrors(quote.ltv));
       return;
     }
     setIsCreating(true);
-    setMessage(null);
     setSelectedCollateralChain(collateralRoute.chain);
     try {
       const created = await createInstantLoan({
@@ -235,9 +242,8 @@ function SimpleLoan() {
     } catch (error) {
       if (error instanceof InstantLoanRecoveryError) {
         setCreatedLoanRecovery(error);
-        setMessage(null);
       } else {
-        setMessage(getErrorMessage(error));
+        toast.error(getErrorMessage(error));
       }
     } finally {
       setIsCreating(false);
@@ -247,7 +253,6 @@ function SimpleLoan() {
   async function loadCreatedLoan() {
     if (!createdLoanRecovery) return;
     setIsCreating(true);
-    setMessage(null);
     try {
       const tracking = await fetchLoanTracking(createdLoanRecovery.loanId);
       setLoan(tracking.loan);
@@ -259,9 +264,9 @@ function SimpleLoan() {
         | undefined;
       if (firstChain) setSelectedCollateralChain(firstChain);
       setCreatedLoanRecovery(null);
-      if (tracking.activityError) setMessage(tracking.activityError);
+      if (tracking.activityError) toast.error(tracking.activityError);
     } catch (error) {
-      setMessage(
+      toast.error(
         `Loan ${createdLoanRecovery.ref} is already created. Loading failed: ${getErrorMessage(error)}`,
       );
     } finally {
@@ -363,9 +368,6 @@ function SimpleLoan() {
           </div>
 
           <QuoteStrip quote={quote} loading={!market && !marketError} />
-          {message || marketError ? (
-            <InlineNotice tone="error">{message ?? marketError}</InlineNotice>
-          ) : null}
           {createdLoanRecovery ? (
             <div className="recovery-notice" role="status">
               <div>
@@ -539,12 +541,10 @@ function LoanManager({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SimpleLoanFindResult[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   async function search(event: FormEvent) {
     event.preventDefault();
     if (!query.trim()) return;
     setBusy(true);
-    setError(null);
     try {
       if (/^\d+$/.test(query.trim())) {
         onLoaded(await fetchLoanTracking(BigInt(query.trim())));
@@ -554,7 +554,7 @@ function LoanManager({
         setResults(await findLoans(query));
       }
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -574,7 +574,6 @@ function LoanManager({
           {busy ? "Searching…" : "Find loan"}
         </Button>
       </form>
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
       {results.map((result) => (
         <Button
           className="search-result"
@@ -584,7 +583,7 @@ function LoanManager({
           onClick={() =>
             void fetchLoanTracking(result.loanId)
               .then(onLoaded)
-              .catch((cause) => setError(getErrorMessage(cause)))
+              .catch((cause) => toast.error(getErrorMessage(cause)))
           }
         >
           <strong>{result.ref}</strong>
@@ -618,6 +617,14 @@ function LoanReceipt({
   );
   const deposit = selectChainTarget(loan.initialDeposit.targets, selectedChain);
   const repayment = selectChainTarget(loan.repayment.targets, loan.borrow.chain, false);
+
+  useEffect(() => {
+    if (!deposit)
+      toast.error("No deposit target is available for this route.", {
+        id: `loan-${loan.ref}-deposit-target-error`,
+      });
+  }, [deposit, loan.ref]);
+
   return (
     <section className="receipt" aria-live="polite">
       <div className="receipt-head">
@@ -647,9 +654,7 @@ function LoanReceipt({
           fee={`${formatBaseUnits(deposit.inflowFeeAmount, loan.initialDeposit.decimals)} fee`}
           target={deposit.target}
         />
-      ) : (
-        <InlineNotice tone="error">No deposit target is available for this route.</InlineNotice>
-      )}
+      ) : null}
       {repayment ? (
         <TargetBlock
           label="Repayment quote"

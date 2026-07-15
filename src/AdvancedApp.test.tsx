@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 import {
   Asset,
   Chain,
@@ -220,8 +221,21 @@ afterEach(() => {
 async function renderAdvanced() {
   vi.resetModules();
   const { default: AdvancedApp } = await import("./AdvancedApp");
-  const view = render(<AdvancedApp />);
-  return { rerender: () => view.rerender(<AdvancedApp />) };
+  const view = render(
+    <>
+      <AdvancedApp />
+      <Toaster theme="dark" visibleToasts={1} />
+    </>,
+  );
+  return {
+    rerender: () =>
+      view.rerender(
+        <>
+          <AdvancedApp />
+          <Toaster theme="dark" visibleToasts={1} />
+        </>,
+      ),
+  };
 }
 
 async function selectRoute(name: string) {
@@ -407,10 +421,7 @@ describe("advanced profile flow", () => {
       target: { value: "0x2222222222222222222222222222222222222222" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Borrow USDT" }));
-    expect(await screen.findByRole("alert")).toHaveProperty(
-      "textContent",
-      "Wallet request rejected",
-    );
+    expect(await screen.findByText("Wallet request rejected")).toBeTruthy();
   });
 
   it("resolves the profile again when Dynamic changes the primary wallet", async () => {
@@ -439,7 +450,7 @@ describe("advanced profile flow", () => {
 
     mocks.fetchPortfolio.mockRejectedValueOnce(new Error("Portfolio unavailable"));
     await renderAdvanced();
-    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Portfolio unavailable");
+    expect(await screen.findByText("Portfolio unavailable")).toBeTruthy();
   });
 
   it("links each activity transaction to its chain explorer", async () => {
