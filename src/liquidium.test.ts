@@ -34,16 +34,24 @@ function pool(asset: Pool["asset"], id: string, decimals: bigint): Pool {
 
 describe("Liquidium route helpers", () => {
   it("expands backing pools into native and ICP asset identifiers", () => {
-    const routes = buildAssetRoutes([
+    // given
+    const pools = [
       pool(Asset.BTC, "btc-pool", 8n),
       pool(Asset.ICP, "icp-pool", 8n),
+      pool(Asset.ETH, "eth-pool", 18n),
       pool(Asset.USDT, "usdt-pool", 6n),
-    ]);
+    ];
 
+    // when
+    const routes = buildAssetRoutes(pools);
+
+    // then
     expect(routes.map((route) => [route.chain, route.displaySymbol])).toEqual([
       [Chain.BTC, "BTC"],
       [Chain.ICP, "ckBTC"],
       [Chain.ICP, "ICP"],
+      [Chain.ETH, "ETH"],
+      [Chain.ICP, "ckETH"],
       [Chain.ETH, "USDT"],
       [Chain.ICP, "ckUSDT"],
     ]);

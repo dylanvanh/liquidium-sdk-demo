@@ -119,6 +119,9 @@ export function buildAssetRoutes(pools: Pool[]): AssetRoute[] {
       add(Chain.ICP, "ckBTC");
     } else if (pool.asset === Asset.ICP) {
       add(Chain.ICP, "ICP");
+    } else if (pool.asset === Asset.ETH) {
+      if (pool.chain === Chain.ETH) add(Chain.ETH, "ETH");
+      add(Chain.ICP, "ckETH");
     } else if (pool.asset === Asset.USDC || pool.asset === Asset.USDT) {
       if (pool.chain === Chain.ETH) add(Chain.ETH, pool.asset);
       add(Chain.ICP, `ck${pool.asset}`);

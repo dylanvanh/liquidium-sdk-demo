@@ -68,10 +68,19 @@ export function App() {
       <a className="skip-link" href="#workspace">
         Skip to workspace
       </a>
+      <div className="signal-bar" aria-hidden="true">
+        <span>Liquidium SDK</span>
+        <span>Accountless lending infrastructure</span>
+        <span>Live on mainnet</span>
+      </div>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Liquidium SDK demo home">
-          <span className="brand-mark">L</span>
-          <span>liquidium-sdk-demo</span>
+          <span className="brand-mark" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <span className="brand-name">Liquidium</span>
+          <span className="brand-edition">SDK / Demo</span>
         </a>
         <nav className="mode-nav" aria-label="Product mode">
           {(["insights", "simple", "advanced"] as const).map((item) => (
@@ -106,6 +115,13 @@ export function App() {
         )}
       </main>
       <footer className="footer">
+        <div className="footer-signoff">
+          <span className="brand-mark" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <strong>Build lending into anything.</strong>
+        </div>
         <nav className="footer-links" aria-label="Source code">
           <a
             href="https://github.com/dylanvanh/liquidium-sdk-demo"

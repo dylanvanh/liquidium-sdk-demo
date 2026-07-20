@@ -1,5 +1,6 @@
 import { Asset, Chain } from "@liquidium/client";
 import TokenBTC from "@web3icons/react/icons/tokens/TokenBTC";
+import TokenETH from "@web3icons/react/icons/tokens/TokenETH";
 import TokenICP from "@web3icons/react/icons/tokens/TokenICP";
 import TokenUSDC from "@web3icons/react/icons/tokens/TokenUSDC";
 import TokenUSDT from "@web3icons/react/icons/tokens/TokenUSDT";
@@ -17,6 +18,7 @@ export function AssetIcon({ asset, chain, className = "" }: AssetIconProps) {
       className={`asset-icon asset-icon-${asset.toLowerCase()} ${className}`.trim()}
     >
       {asset === Asset.BTC ? <TokenBTC variant="branded" /> : null}
+      {asset === Asset.ETH ? <TokenETH variant="branded" /> : null}
       {asset === Asset.ICP ? <TokenICP variant="branded" /> : null}
       {asset === Asset.USDC ? <TokenUSDC variant="branded" /> : null}
       {asset === Asset.USDT ? <TokenUSDT variant="branded" /> : null}
