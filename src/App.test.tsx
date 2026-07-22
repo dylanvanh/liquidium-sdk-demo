@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   Asset,
   Chain,
-  InstantLoanCreatedError,
-  type InstantLoan,
-  type InstantLoanFindResult,
+  SimpleLoanCreatedError,
+  type SimpleLoan,
+  type SimpleLoanFindResult,
   type Pool,
 } from "@liquidium/client";
 import { InstantLoanRecoveryError } from "./liquidium";
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./AdvancedApp", () => ({ default: () => <div>Advanced wallet workspace</div> }));
+vi.mock("./InsightsApp", () => ({ default: () => <div>Live market insights</div> }));
 vi.mock("./liquidium", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./liquidium")>();
   return {
@@ -133,9 +134,10 @@ const recoveredLoan = {
     debtInterestAmount: 0n,
     totalDebtAmount: 25_000_000n,
   },
-} as InstantLoan;
+} as SimpleLoan;
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/simple-loan");
   mocks.fetchMarketData.mockResolvedValue({ pools: [btcPool, usdcPool], prices: {}, routes });
   mocks.findLoans.mockResolvedValue([]);
   mocks.fetchLoanTracking.mockResolvedValue({
@@ -152,12 +154,50 @@ afterEach(() => {
 });
 
 describe("product mode navigation", () => {
-  it("starts in the wallet-free simple flow and loads advanced on demand", async () => {
+  it("links to the demo and Liquidium SDK repositories", () => {
     render(<App />);
+
+    const demoLink = screen.getByRole("link", { name: "Demo on GitHub" });
+    expect(demoLink.getAttribute("href")).toBe("https://github.com/dylanvanh/liquidium-sdk-demo");
+    expect(demoLink.getAttribute("target")).toBe("_blank");
+    expect(demoLink.getAttribute("rel")).toBe("noopener noreferrer");
+
+    const sdkLink = screen.getByRole("link", { name: "Liquidium SDK on GitHub" });
+    expect(sdkLink.getAttribute("href")).toBe("https://github.com/Liquidium-Inc/liquidium-sdk");
+  });
+
+  it("starts with market insights and keeps each product mode directly addressable", async () => {
+    window.history.replaceState(null, "", "/");
+    render(<App />);
+    expect(await screen.findByText("Live market insights")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Insights" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Simple loan" }));
     expect(screen.getByRole("heading", { name: /borrow across chains/i })).toBeTruthy();
+    expect(window.location.pathname).toBe("/simple-loan");
 
     fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
     expect(await screen.findByText("Advanced wallet workspace")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Insights" }));
+    expect(await screen.findByText("Live market insights")).toBeTruthy();
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("keeps the previous insights path working", async () => {
+    // given
+    window.history.replaceState(null, "", "/insights");
+
+    // when
+    render(<App />);
+
+    // then
+    expect(await screen.findByText("Live market insights")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Insights" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
   });
 
   it("switches the collateral picker between native and ICP routes", async () => {
@@ -181,7 +221,7 @@ describe("product mode navigation", () => {
         profileId: "aaaaa-aa",
         collateral: { poolId: btcPool.id, asset: Asset.BTC, amount: 100_000n },
         borrow: { poolId: usdcPool.id, asset: Asset.USDC },
-      } as InstantLoanFindResult,
+      } as SimpleLoanFindResult,
     ]);
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: /find an existing loan/i }));
@@ -196,7 +236,7 @@ describe("product mode navigation", () => {
   });
 
   it("preserves an already-created loan reference and blocks duplicate creation", async () => {
-    const createdError = new InstantLoanCreatedError(7n, new Error("first hydration failed"));
+    const createdError = new SimpleLoanCreatedError(7n, new Error("first hydration failed"));
     const recovery = new InstantLoanRecoveryError(
       createdError,
       new Error("second hydration failed"),

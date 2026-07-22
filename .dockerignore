@@ -1,0 +1,8 @@
+.git
+.agents
+.env*
+!.env.example
+.DS_Store
+dist
+node_modules
+*.log

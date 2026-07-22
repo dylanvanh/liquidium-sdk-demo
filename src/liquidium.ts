@@ -1,34 +1,25 @@
 import {
   Asset,
   Chain,
-  InstantLoanCreatedError,
-  LiquidiumAccountType,
+  SimpleLoanCreatedError,
   LiquidiumClient,
   RATE_DECIMALS,
   SupplyAction,
-  getMinimumBorrowAmount,
-  getMinimumWithdrawAmount,
   type Activity,
   type AssetIdentifier,
   type AssetPrices,
-  type CreateInstantLoanRequest,
-  type InstantLoan,
-  type InstantLoanFindResult,
-  type LiquidiumAccountInput,
+  type CreateSimpleLoanRequest,
   type LiquidiumStatus,
   type LtvCalculation,
   type OutflowDetails,
   type Pool,
+  type SimpleLoan,
+  type SimpleLoanFindResult,
   type SupplyFlow,
   type UserPositionSummary,
   type UserReserve,
   type WalletAdapter,
 } from "@liquidium/client";
-import { decodeIcrcAccount } from "@icp-sdk/canisters/ledger/icrc";
-import { isIcpAccountIdentifier } from "@icp-sdk/canisters/ledger/icp";
-import { Principal } from "@icp-sdk/core/principal";
-import { Network, validate as validateBitcoinAddress } from "bitcoin-address-validation";
-import { isAddress as isEthereumAddress } from "viem";
 
 export const POLL_INTERVAL_MS = 4_000;
 export const DEPOSIT_WINDOW_SECONDS = 3_600n;
@@ -51,7 +42,7 @@ export type QuoteState =
   | { status: "empty" | "error"; message: string };
 
 export type LoanTracking = {
-  loan: InstantLoan;
+  loan: SimpleLoan;
   activities: Activity[];
   activityError: string | null;
 };
@@ -74,7 +65,7 @@ export class InstantLoanRecoveryError extends Error {
   readonly ref: string;
   readonly cause: unknown;
 
-  constructor(createdError: InstantLoanCreatedError, cause: unknown) {
+  constructor(createdError: SimpleLoanCreatedError, cause: unknown) {
     super(`Loan ${createdError.ref} was created, but its current state could not be loaded.`);
     this.name = "InstantLoanRecoveryError";
     this.loanId = createdError.loanId;
@@ -119,6 +110,9 @@ export function buildAssetRoutes(pools: Pool[]): AssetRoute[] {
       add(Chain.ICP, "ckBTC");
     } else if (pool.asset === Asset.ICP) {
       add(Chain.ICP, "ICP");
+    } else if (pool.asset === Asset.ETH) {
+      if (pool.chain === Chain.ETH) add(Chain.ETH, "ETH");
+      add(Chain.ICP, "ckETH");
     } else if (pool.asset === Asset.USDC || pool.asset === Asset.USDT) {
       if (pool.chain === Chain.ETH) add(Chain.ETH, pool.asset);
       add(Chain.ICP, `ck${pool.asset}`);
@@ -147,50 +141,6 @@ export function selectChainTarget<T>(
   const preferred = targets[preferredChain];
   if (preferred || !fallback) return preferred;
   return Object.values(targets).find((target): target is T => Boolean(target));
-}
-
-export function validateDestination(route: AssetIdentifier, value: string): string | null {
-  const address = value.trim();
-  if (!address) return "Enter a destination address.";
-
-  if (route.chain === Chain.ETH) {
-    return isEthereumAddress(address) ? null : "Enter a valid Ethereum mainnet address.";
-  }
-  if (route.chain === Chain.BTC) {
-    return validateBitcoinAddress(address, Network.mainnet)
-      ? null
-      : "Enter a valid Bitcoin mainnet address.";
-  }
-  if (route.chain !== Chain.ICP) return "This delivery route is not supported.";
-
-  if (route.asset !== Asset.ICP) {
-    return isPrincipal(address)
-      ? null
-      : `${route.asset} on ICP must be delivered to an IC principal.`;
-  }
-  if (isPrincipal(address) || isIcpAccountIdentifier(address) || isIcrcAddress(address))
-    return null;
-  return "Enter an IC principal, ICP account identifier, or ICRC account.";
-}
-
-export function buildTypedDestination(
-  route: AssetIdentifier,
-  value: string,
-): LiquidiumAccountInput {
-  const address = value.trim();
-  const validationError = validateDestination(route, address);
-  if (validationError) throw new Error(validationError);
-
-  if (route.chain !== Chain.ICP) {
-    return { type: LiquidiumAccountType.ChainAddress, address };
-  }
-  if (route.asset !== Asset.ICP || isPrincipal(address)) {
-    return { type: LiquidiumAccountType.IcPrincipal, address };
-  }
-  if (isIcpAccountIdentifier(address)) {
-    return { type: LiquidiumAccountType.IcpAccountIdentifier, address };
-  }
-  return { type: LiquidiumAccountType.IcrcAccount, address };
 }
 
 export function buildQuoteState(params: {
@@ -234,10 +184,10 @@ export async function createInstantLoan(params: {
   quote: Extract<QuoteState, { status: "ready" }>;
   borrowDestination: string;
   refundDestination: string;
-}): Promise<InstantLoan> {
+}): Promise<SimpleLoan> {
   const { collateralRoute, borrowRoute, quote, borrowDestination, refundDestination } = params;
   try {
-    return await client.instantLoans.create(
+    return await client.simpleLoans.create(
       buildInstantLoanRequest({
         collateralRoute,
         borrowRoute,
@@ -247,16 +197,16 @@ export async function createInstantLoan(params: {
       }),
     );
   } catch (error) {
-    if (error instanceof InstantLoanCreatedError) return await recoverCreatedInstantLoan(error);
+    if (error instanceof SimpleLoanCreatedError) return await recoverCreatedInstantLoan(error);
     throw error;
   }
 }
 
 export async function recoverCreatedInstantLoan(
-  error: InstantLoanCreatedError,
-  load: (loanId: bigint) => Promise<InstantLoan> = async (loanId) =>
-    await client.instantLoans.get({ loanId }),
-): Promise<InstantLoan> {
+  error: SimpleLoanCreatedError,
+  load: (loanId: bigint) => Promise<SimpleLoan> = async (loanId) =>
+    await client.simpleLoans.get({ loanId }),
+): Promise<SimpleLoan> {
   try {
     return await load(error.loanId);
   } catch (cause) {
@@ -265,7 +215,7 @@ export async function recoverCreatedInstantLoan(
 }
 
 export function getRecoverableInstantLoanId(error: unknown): bigint | null {
-  return error instanceof InstantLoanCreatedError ? error.loanId : null;
+  return error instanceof SimpleLoanCreatedError ? error.loanId : null;
 }
 
 export function buildInstantLoanRequest(params: {
@@ -274,7 +224,7 @@ export function buildInstantLoanRequest(params: {
   quote: Extract<QuoteState, { status: "ready" }>;
   borrowDestination: string;
   refundDestination: string;
-}): CreateInstantLoanRequest {
+}): CreateSimpleLoanRequest {
   const { collateralRoute, borrowRoute, quote, borrowDestination, refundDestination } = params;
   return {
     collateral: {
@@ -287,11 +237,11 @@ export function buildInstantLoanRequest(params: {
       asset: borrowRoute.asset,
       chain: borrowRoute.chain,
       amount: quote.borrowAmount,
-      destination: buildTypedDestination(borrowRoute, borrowDestination),
-    } as CreateInstantLoanRequest["borrow"],
+      destination: borrowDestination.trim(),
+    } as CreateSimpleLoanRequest["borrow"],
     refund: {
       chain: collateralRoute.chain,
-      destination: buildTypedDestination(collateralRoute, refundDestination),
+      destination: refundDestination.trim(),
     },
     ltvMaxBps: quote.ltv.maxAllowedLtvBps,
     depositWindowSeconds: DEPOSIT_WINDOW_SECONDS,
@@ -299,7 +249,7 @@ export function buildInstantLoanRequest(params: {
 }
 
 export async function fetchLoanTracking(identifier: string | bigint): Promise<LoanTracking> {
-  const loan = await client.instantLoans.get(
+  const loan = await client.simpleLoans.get(
     typeof identifier === "bigint" ? { loanId: identifier } : { ref: identifier.trim() },
   );
   const activitiesResult = await Promise.allSettled([
@@ -316,8 +266,8 @@ export async function fetchLoanTracking(identifier: string | bigint): Promise<Lo
   };
 }
 
-export async function findLoans(query: string): Promise<InstantLoanFindResult[]> {
-  return await client.instantLoans.find(query.trim());
+export async function findLoans(query: string): Promise<SimpleLoanFindResult[]> {
+  return await client.simpleLoans.find(query.trim());
 }
 
 export async function resolveProfile(walletAddress: string): Promise<string | null> {
@@ -404,7 +354,7 @@ export async function borrowWithProfile(params: {
     poolId: params.route.poolId,
     amount: params.amount,
     chain: params.route.chain,
-    receiver: buildTypedDestination(params.route, params.receiver),
+    receiver: params.receiver.trim(),
     signerWalletAddress: params.signerWalletAddress,
     signerChain: params.signerChain,
     signerWalletAdapter: params.signerWalletAdapter,
@@ -425,7 +375,7 @@ export async function withdrawWithProfile(params: {
     poolId: params.route.poolId,
     amount: params.amount,
     chain: params.route.chain,
-    receiver: buildTypedDestination(params.route, params.receiver),
+    receiver: params.receiver.trim(),
     signerWalletAddress: params.signerWalletAddress,
     signerChain: params.signerChain,
     signerWalletAdapter: params.signerWalletAdapter,
@@ -438,14 +388,6 @@ export async function getMaxRepay(profileId: string, poolId: string): Promise<bi
 
 export async function getMaxWithdraw(profileId: string, poolId: string): Promise<bigint> {
   return (await client.positions.getFullWithdrawAmount(profileId, poolId)).amount;
-}
-
-export function getMinimumBorrow(route?: AssetRoute): bigint {
-  return route ? getMinimumBorrowAmount(route.asset) : 0n;
-}
-
-export function getMinimumWithdraw(route?: AssetRoute): bigint {
-  return route ? getMinimumWithdrawAmount(route.asset) : 0n;
 }
 
 export function parseDecimalToBaseUnits(value: string, decimals: bigint): bigint {
@@ -540,22 +482,4 @@ export function formatQuoteErrors(ltv: LtvCalculation): string {
 
 export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error.";
-}
-
-function isPrincipal(value: string): boolean {
-  try {
-    Principal.fromText(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function isIcrcAddress(value: string): boolean {
-  try {
-    decodeIcrcAccount(value);
-    return true;
-  } catch {
-    return false;
-  }
 }

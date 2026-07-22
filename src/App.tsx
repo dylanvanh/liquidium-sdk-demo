@@ -2,8 +2,8 @@ import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from "re
 import {
   Chain,
   type Activity,
-  type InstantLoan,
-  type InstantLoanFindResult,
+  type SimpleLoan,
+  type SimpleLoanFindResult,
   type SupplyTarget,
 } from "@liquidium/client";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,10 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { AssetIcon } from "@/components/asset-icon";
+import { AdvancedLoading } from "@/components/advanced-loading";
+import { InsightsLoading } from "@/components/insights-loading";
+import { Code2, PackageOpen, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
   DEPOSIT_WINDOW_SECONDS,
   InstantLoanRecoveryError,
@@ -30,35 +34,64 @@ import {
   getRoute,
   routeKey,
   selectChainTarget,
-  validateDestination,
   type AssetRoute,
   type MarketData,
 } from "./liquidium";
 
 const AdvancedApp = lazy(() => import("./AdvancedApp"));
-type AppMode = "simple" | "advanced";
+const InsightsApp = lazy(() => import("./InsightsApp"));
+type AppMode = "simple" | "advanced" | "insights";
+const APP_MODE_PATHS: Record<AppMode, string> = {
+  simple: "/simple-loan",
+  advanced: "/advanced",
+  insights: "/",
+};
 
 export function App() {
-  const [mode, setMode] = useState<AppMode>("simple");
+  const [mode, setMode] = useState<AppMode>(() => getAppModeFromPathname(window.location.pathname));
+
+  useEffect(() => {
+    const handlePopState = () => setMode(getAppModeFromPathname(window.location.pathname));
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function navigateToMode(nextMode: AppMode) {
+    const nextPath = APP_MODE_PATHS[nextMode];
+    if (window.location.pathname !== nextPath) window.history.pushState(null, "", nextPath);
+    setMode(nextMode);
+  }
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#workspace">
         Skip to workspace
       </a>
+      <div className="signal-bar" aria-hidden="true">
+        <span>Liquidium SDK</span>
+        <span>Accountless lending infrastructure</span>
+        <span>Live on mainnet</span>
+      </div>
       <header className="topbar">
         <a className="brand" href="/" aria-label="Liquidium SDK demo home">
-          <span className="brand-mark">L</span>
-          <span>liquidium-sdk-demo</span>
+          <span className="brand-mark" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <span className="brand-name">Liquidium</span>
+          <span className="brand-edition">SDK / Demo</span>
         </a>
         <nav className="mode-nav" aria-label="Product mode">
-          {(["simple", "advanced"] as const).map((item) => (
+          {(["insights", "simple", "advanced"] as const).map((item) => (
             <Button
-              className={mode === item ? "mode-button active" : "mode-button"}
+              className="mode-button"
+              variant={mode === item ? "secondary" : "ghost"}
+              aria-current={mode === item ? "page" : undefined}
               key={item}
               type="button"
-              onClick={() => setMode(item)}
+              onClick={() => navigateToMode(item)}
             >
-              {item === "simple" ? "Simple loan" : "Advanced"}
+              {item === "simple" ? "Simple loan" : item === "advanced" ? "Advanced" : "Insights"}
             </Button>
           ))}
         </nav>
@@ -70,18 +103,53 @@ export function App() {
       <main id="workspace" className="workspace">
         {mode === "simple" ? (
           <SimpleLoan />
-        ) : (
-          <Suspense fallback={<AdvancedSkeleton />}>
+        ) : mode === "advanced" ? (
+          <Suspense fallback={<AdvancedLoading />}>
             <AdvancedApp />
+          </Suspense>
+        ) : (
+          <Suspense fallback={<InsightsLoading />}>
+            <InsightsApp />
           </Suspense>
         )}
       </main>
       <footer className="footer">
-        <span>SDK 0.5 release candidate</span>
+        <div className="footer-signoff">
+          <span className="brand-mark" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <strong>Build lending into anything.</strong>
+        </div>
+        <nav className="footer-links" aria-label="Source code">
+          <a
+            href="https://github.com/dylanvanh/liquidium-sdk-demo"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Code2 aria-hidden="true" size={16} />
+            Demo on GitHub
+          </a>
+          <a
+            href="https://github.com/Liquidium-Inc/liquidium-sdk"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <PackageOpen aria-hidden="true" size={16} />
+            Liquidium SDK on GitHub
+          </a>
+        </nav>
         <span>Transactions execute on mainnet. Review wallet prompts carefully.</span>
       </footer>
     </div>
   );
+}
+
+function getAppModeFromPathname(pathname: string): AppMode {
+  const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
+  if (normalizedPathname === APP_MODE_PATHS.advanced) return "advanced";
+  if (normalizedPathname === APP_MODE_PATHS.simple) return "simple";
+  return "insights";
 }
 
 function SimpleLoan() {
@@ -93,12 +161,11 @@ function SimpleLoan() {
   const [borrowInput, setBorrowInput] = useState("25");
   const [borrowDestination, setBorrowDestination] = useState("");
   const [refundDestination, setRefundDestination] = useState("");
-  const [loan, setLoan] = useState<InstantLoan | null>(null);
+  const [loan, setLoan] = useState<SimpleLoan | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedCollateralChain, setSelectedCollateralChain] = useState<
     typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP
   >(Chain.BTC);
-  const [message, setMessage] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [createdLoanRecovery, setCreatedLoanRecovery] = useState<InstantLoanRecoveryError | null>(
     null,
@@ -115,7 +182,12 @@ function SimpleLoan() {
         if (!getRoute(data.routes, borrowKey))
           setBorrowKey(routeKey(data.routes[1] ?? data.routes[0]));
       })
-      .catch((error) => !cancelled && setMarketError(getErrorMessage(error)));
+      .catch((error) => {
+        if (cancelled) return;
+        const message = getErrorMessage(error);
+        setMarketError(message);
+        toast.error(message, { id: "simple-market-error" });
+      });
     return () => {
       cancelled = true;
     };
@@ -128,9 +200,12 @@ function SimpleLoan() {
         .then((tracking) => {
           setLoan(tracking.loan);
           setActivities(tracking.activities);
-          if (tracking.activityError) setMessage(tracking.activityError);
+          if (tracking.activityError)
+            toast.error(tracking.activityError, { id: `loan-${loan.ref}-activity-error` });
         })
-        .catch((error) => setMessage(getErrorMessage(error)));
+        .catch((error) =>
+          toast.error(getErrorMessage(error), { id: `loan-${loan.ref}-tracking-error` }),
+        );
     };
     const id = window.setInterval(refresh, POLL_INTERVAL_MS);
     return () => window.clearInterval(id);
@@ -150,24 +225,14 @@ function SimpleLoan() {
       }),
     [market, collateralRoute, borrowRoute, collateralInput, borrowInput],
   );
-  const borrowDestinationError =
-    borrowRoute && borrowDestination.trim()
-      ? validateDestination(borrowRoute, borrowDestination)
-      : null;
-  const refundDestinationError =
-    collateralRoute && refundDestination.trim()
-      ? validateDestination(collateralRoute, refundDestination)
-      : null;
-
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!collateralRoute || !borrowRoute || quote.status !== "ready") return;
     if (quote.ltv.validationErrors.length) {
-      setMessage(formatQuoteErrors(quote.ltv));
+      toast.error(formatQuoteErrors(quote.ltv));
       return;
     }
     setIsCreating(true);
-    setMessage(null);
     setSelectedCollateralChain(collateralRoute.chain);
     try {
       const created = await createInstantLoan({
@@ -183,9 +248,8 @@ function SimpleLoan() {
     } catch (error) {
       if (error instanceof InstantLoanRecoveryError) {
         setCreatedLoanRecovery(error);
-        setMessage(null);
       } else {
-        setMessage(getErrorMessage(error));
+        toast.error(getErrorMessage(error));
       }
     } finally {
       setIsCreating(false);
@@ -195,7 +259,6 @@ function SimpleLoan() {
   async function loadCreatedLoan() {
     if (!createdLoanRecovery) return;
     setIsCreating(true);
-    setMessage(null);
     try {
       const tracking = await fetchLoanTracking(createdLoanRecovery.loanId);
       setLoan(tracking.loan);
@@ -207,9 +270,9 @@ function SimpleLoan() {
         | undefined;
       if (firstChain) setSelectedCollateralChain(firstChain);
       setCreatedLoanRecovery(null);
-      if (tracking.activityError) setMessage(tracking.activityError);
+      if (tracking.activityError) toast.error(tracking.activityError);
     } catch (error) {
-      setMessage(
+      toast.error(
         `Loan ${createdLoanRecovery.ref} is already created. Loading failed: ${getErrorMessage(error)}`,
       );
     } finally {
@@ -228,6 +291,7 @@ function SimpleLoan() {
         </p>
         <Button
           className="text-action"
+          variant="link"
           type="button"
           onClick={() => setManageOpen((value) => !value)}
         >
@@ -267,6 +331,7 @@ function SimpleLoan() {
             value={collateralInput}
             routeKeyValue={collateralKey}
             routes={market?.routes ?? []}
+            loading={!market && !marketError}
             onValue={setCollateralInput}
             onRoute={setCollateralKey}
           />
@@ -278,6 +343,7 @@ function SimpleLoan() {
             value={borrowInput}
             routeKeyValue={borrowKey}
             routes={market?.routes ?? []}
+            loading={!market && !marketError}
             onValue={setBorrowInput}
             onRoute={setBorrowKey}
           />
@@ -292,7 +358,6 @@ function SimpleLoan() {
                   ? "IC principal or ICRC account"
                   : "Receiving address"
               }
-              error={borrowDestinationError}
             />
             <Field
               label="Collateral refund address"
@@ -303,14 +368,10 @@ function SimpleLoan() {
                   ? "IC principal or ICRC account"
                   : "Refund address"
               }
-              error={refundDestinationError}
             />
           </div>
 
-          <QuoteStrip quote={quote} />
-          {message || marketError ? (
-            <InlineNotice tone="error">{message ?? marketError}</InlineNotice>
-          ) : null}
+          <QuoteStrip quote={quote} loading={!market && !marketError} />
           {createdLoanRecovery ? (
             <div className="recovery-notice" role="status">
               <div>
@@ -324,6 +385,7 @@ function SimpleLoan() {
           ) : null}
           <Button
             className="primary-action"
+            size="lg"
             type="submit"
             disabled={
               isCreating ||
@@ -331,8 +393,7 @@ function SimpleLoan() {
               quote.status !== "ready" ||
               quote.ltv.validationErrors.length > 0 ||
               !borrowDestination.trim() ||
-              !refundDestination.trim() ||
-              Boolean(borrowDestinationError || refundDestinationError)
+              !refundDestination.trim()
             }
           >
             {isCreating
@@ -341,7 +402,7 @@ function SimpleLoan() {
                 ? "Loan already created"
                 : market
                   ? "Create simple loan"
-                  : "Loading markets…"}
+                  : "Waiting for live routes"}
           </Button>
         </form>
 
@@ -363,6 +424,7 @@ function AmountPanel(props: {
   value: string;
   routeKeyValue: string;
   routes: AssetRoute[];
+  loading: boolean;
   onValue: (value: string) => void;
   onRoute: (value: string) => void;
 }) {
@@ -391,10 +453,13 @@ function AmountPanel(props: {
           <NativeSelect
             aria-label={`${props.label} asset`}
             value={props.routeKeyValue}
+            disabled={props.loading}
             onChange={(event) => props.onRoute(event.target.value)}
           >
             {!visibleRoutes.some((route) => routeKey(route) === props.routeKeyValue) ? (
-              <option value={props.routeKeyValue}>{selectedRoute?.displaySymbol ?? "Asset"}</option>
+              <option value={props.routeKeyValue}>
+                {selectedRoute?.displaySymbol ?? (props.loading ? "Loading routes…" : "Asset")}
+              </option>
             ) : null}
             {visibleRoutes.map((route) => (
               <option key={routeKey(route)} value={routeKey(route)}>
@@ -407,6 +472,7 @@ function AmountPanel(props: {
       <label className="icp-toggle">
         <Switch
           checked={showIcp}
+          disabled={props.loading}
           onCheckedChange={(checked) => {
             setShowIcp(checked);
             const next = props.routes.find((route) =>
@@ -421,7 +487,28 @@ function AmountPanel(props: {
   );
 }
 
-function QuoteStrip({ quote }: { quote: ReturnType<typeof buildQuoteState> }) {
+function QuoteStrip({
+  quote,
+  loading,
+}: {
+  quote: ReturnType<typeof buildQuoteState>;
+  loading: boolean;
+}) {
+  if (loading)
+    return (
+      <div className="quote-strip quote-strip-loading" role="status">
+        {(["Loan-to-value", "Max LTV", "Borrow value"] as const).map((label) => (
+          <div key={label}>
+            <span>{label}</span>
+            <i className="loading-placeholder medium" aria-hidden="true" />
+          </div>
+        ))}
+        <p>
+          <RefreshCw aria-hidden="true" className="is-spinning" />
+          Fetching live pool rates
+        </p>
+      </div>
+    );
   if (quote.status !== "ready")
     return (
       <div className="quote-strip muted">
@@ -455,14 +542,12 @@ function LoanManager({
   onLoaded: (tracking: Awaited<ReturnType<typeof fetchLoanTracking>>) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<InstantLoanFindResult[]>([]);
+  const [results, setResults] = useState<SimpleLoanFindResult[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   async function search(event: FormEvent) {
     event.preventDefault();
     if (!query.trim()) return;
     setBusy(true);
-    setError(null);
     try {
       if (/^\d+$/.test(query.trim())) {
         onLoaded(await fetchLoanTracking(BigInt(query.trim())));
@@ -472,7 +557,7 @@ function LoanManager({
         setResults(await findLoans(query));
       }
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -488,20 +573,20 @@ function LoanManager({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" size="lg" disabled={busy}>
           {busy ? "Searching…" : "Find loan"}
         </Button>
       </form>
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
       {results.map((result) => (
         <Button
           className="search-result"
+          variant="secondary"
           type="button"
           key={result.ref}
           onClick={() =>
             void fetchLoanTracking(result.loanId)
               .then(onLoaded)
-              .catch((cause) => setError(getErrorMessage(cause)))
+              .catch((cause) => toast.error(getErrorMessage(cause)))
           }
         >
           <strong>{result.ref}</strong>
@@ -520,7 +605,7 @@ function LoanReceipt({
   selectedChain,
   onChain,
 }: {
-  loan: InstantLoan;
+  loan: SimpleLoan;
   activities: Activity[];
   selectedChain: typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP;
   onChain: (chain: typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP) => void;
@@ -535,6 +620,14 @@ function LoanReceipt({
   );
   const deposit = selectChainTarget(loan.initialDeposit.targets, selectedChain);
   const repayment = selectChainTarget(loan.repayment.targets, loan.borrow.chain, false);
+
+  useEffect(() => {
+    if (!deposit)
+      toast.error("No deposit target is available for this route.", {
+        id: `loan-${loan.ref}-deposit-target-error`,
+      });
+  }, [deposit, loan.ref]);
+
   return (
     <section className="receipt" aria-live="polite">
       <div className="receipt-head">
@@ -548,7 +641,8 @@ function LoanReceipt({
         {depositEntries.map(([chain]) => (
           <Button
             type="button"
-            className={chain === selectedChain ? "active" : ""}
+            size="sm"
+            variant={chain === selectedChain ? "secondary" : "ghost"}
             key={chain}
             onClick={() => onChain(chain)}
           >
@@ -563,9 +657,7 @@ function LoanReceipt({
           fee={`${formatBaseUnits(deposit.inflowFeeAmount, loan.initialDeposit.decimals)} fee`}
           target={deposit.target}
         />
-      ) : (
-        <InlineNotice tone="error">No deposit target is available for this route.</InlineNotice>
-      )}
+      ) : null}
       {repayment ? (
         <TargetBlock
           label="Repayment quote"
@@ -601,6 +693,7 @@ function TargetBlock({
         <small>{target.chain === Chain.ICP ? "ICRC account" : `${target.chain} address`}</small>
         <Button
           type="button"
+          variant="secondary"
           onClick={() =>
             void navigator.clipboard.writeText(target.address).then(() => {
               setCopied(true);
@@ -659,15 +752,5 @@ export function InlineNotice({
     <div className={`notice ${tone}`} role={tone === "error" ? "alert" : "status"}>
       {children}
     </div>
-  );
-}
-
-function AdvancedSkeleton() {
-  return (
-    <section className="advanced-skeleton" aria-label="Loading advanced lending">
-      <div className="skeleton wide" />
-      <div className="skeleton card" />
-      <div className="skeleton card" />
-    </section>
   );
 }

@@ -2,16 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   Asset,
   Chain,
-  InstantLoanCreatedError,
-  LiquidiumAccountType,
-  type InstantLoan,
+  SimpleLoanCreatedError,
+  type SimpleLoan,
   type Pool,
 } from "@liquidium/client";
 import {
   InstantLoanRecoveryError,
   buildAssetRoutes,
   buildInstantLoanRequest,
-  buildTypedDestination,
   formatActivityStatusDetail,
   formatBaseUnits,
   formatHealthFactor,
@@ -22,7 +20,6 @@ import {
   routeKey,
   recoverCreatedInstantLoan,
   selectChainTarget,
-  validateDestination,
   type AssetRoute,
   type QuoteState,
 } from "./liquidium";
@@ -34,16 +31,24 @@ function pool(asset: Pool["asset"], id: string, decimals: bigint): Pool {
 
 describe("Liquidium route helpers", () => {
   it("expands backing pools into native and ICP asset identifiers", () => {
-    const routes = buildAssetRoutes([
+    // given
+    const pools = [
       pool(Asset.BTC, "btc-pool", 8n),
       pool(Asset.ICP, "icp-pool", 8n),
+      pool(Asset.ETH, "eth-pool", 18n),
       pool(Asset.USDT, "usdt-pool", 6n),
-    ]);
+    ];
 
+    // when
+    const routes = buildAssetRoutes(pools);
+
+    // then
     expect(routes.map((route) => [route.chain, route.displaySymbol])).toEqual([
       [Chain.BTC, "BTC"],
       [Chain.ICP, "ckBTC"],
       [Chain.ICP, "ICP"],
+      [Chain.ETH, "ETH"],
+      [Chain.ICP, "ckETH"],
       [Chain.ETH, "USDT"],
       [Chain.ICP, "ckUSDT"],
     ]);
@@ -107,8 +112,9 @@ describe("portfolio display formatting", () => {
   });
 });
 
-describe("instant-loan RC request", () => {
+describe("simple-loan request", () => {
   it("keeps transfer chains on borrow and refund legs", () => {
+    // given
     const collateralRoute: AssetRoute = {
       chain: Chain.ICP,
       asset: Asset.BTC,
@@ -129,6 +135,8 @@ describe("instant-loan RC request", () => {
       borrowAmount: 10_000_000n,
       ltv: { maxAllowedLtvBps: 6_000n },
     } as Extract<QuoteState, { status: "ready" }>;
+
+    // when
     const request = buildInstantLoanRequest({
       collateralRoute,
       borrowRoute,
@@ -137,27 +145,28 @@ describe("instant-loan RC request", () => {
       refundDestination: "aaaaa-aa",
     });
 
+    // then
     expect(request.collateral).toMatchObject({ poolId: "btc-pool", asset: Asset.BTC });
     expect(request.borrow).toMatchObject({
       chain: Chain.ICP,
       asset: Asset.USDT,
-      destination: { type: LiquidiumAccountType.IcPrincipal, address: "aaaaa-aa" },
+      destination: "aaaaa-aa",
     });
     expect(request.refund).toEqual({
       chain: Chain.ICP,
-      destination: { type: LiquidiumAccountType.IcPrincipal, address: "aaaaa-aa" },
+      destination: "aaaaa-aa",
     });
   });
 
   it("retains the created loan id when hydration fails", () => {
-    const error = new InstantLoanCreatedError(42n, new Error("hydrate failed"));
+    const error = new SimpleLoanCreatedError(42n, new Error("hydrate failed"));
     expect(getRecoverableInstantLoanId(error)).toBe(42n);
     expect(getRecoverableInstantLoanId(new Error("other"))).toBeNull();
   });
 
   it("loads an already-created loan without creating again and preserves its reference on failure", async () => {
-    const created = new InstantLoanCreatedError(42n, new Error("hydrate failed"));
-    const loan = { loanId: 42n } as InstantLoan;
+    const created = new SimpleLoanCreatedError(42n, new Error("hydrate failed"));
+    const loan = { loanId: 42n } as SimpleLoan;
     await expect(
       recoverCreatedInstantLoan(created, async (loanId) => {
         expect(loanId).toBe(42n);
@@ -174,22 +183,5 @@ describe("instant-loan RC request", () => {
       loanId: 42n,
       ref: created.ref,
     } satisfies Partial<InstantLoanRecoveryError>);
-  });
-});
-
-describe("destination validation", () => {
-  it("validates and types native and ICP-chain destinations", () => {
-    const eth = { chain: Chain.ETH, asset: Asset.USDC } as const;
-    const btc = { chain: Chain.BTC, asset: Asset.BTC } as const;
-    const ck = { chain: Chain.ICP, asset: Asset.BTC } as const;
-
-    expect(validateDestination(eth, "0x1111111111111111111111111111111111111111")).toBeNull();
-    expect(validateDestination(btc, "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh")).toBeNull();
-    expect(validateDestination(ck, "aaaaa-aa")).toBeNull();
-    expect(validateDestination(ck, "not-a-principal")).toContain("IC principal");
-    expect(buildTypedDestination(eth, "0x1111111111111111111111111111111111111111")).toEqual({
-      type: LiquidiumAccountType.ChainAddress,
-      address: "0x1111111111111111111111111111111111111111",
-    });
   });
 });

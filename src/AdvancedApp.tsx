@@ -14,6 +14,7 @@ import {
   type UserReserve,
 } from "@liquidium/client";
 import { ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,6 +25,11 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { AssetIcon } from "@/components/asset-icon";
+import {
+  AdvancedComposerLoading,
+  AdvancedPortfolioLoading,
+  AdvancedProfileLoading,
+} from "@/components/advanced-loading";
 import { InlineNotice } from "./App";
 import { getConnectedWallet } from "./dynamic-wallet";
 import {
@@ -42,13 +48,10 @@ import {
   getInflowQuote,
   getMaxRepay,
   getMaxWithdraw,
-  getMinimumBorrow,
-  getMinimumWithdraw,
   parseDecimalToBaseUnits,
   resolveProfile,
   routeKey,
   submitManualSupply,
-  validateDestination,
   borrowWithProfile,
   withdrawWithProfile,
   type AssetRoute,
@@ -95,13 +98,14 @@ function AdvancedWorkspace() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedReserve, setSelectedReserve] = useState<UserReserve | null>(null);
 
   useEffect(() => {
     fetchMarketData()
       .then(setMarket)
-      .catch((cause) => setError(getErrorMessage(cause)));
+      .catch((cause) =>
+        toast.error(getErrorMessage(cause), { id: "advanced-market-error" }),
+      );
   }, []);
 
   useEffect(() => {
@@ -114,7 +118,11 @@ function AdvancedWorkspace() {
       .then((id) => {
         if (!cancelled) setProfileId(id);
       })
-      .catch((cause) => !cancelled && setError(getErrorMessage(cause)))
+      .catch(
+        (cause) =>
+          !cancelled &&
+          toast.error(getErrorMessage(cause), { id: "profile-resolution-error" }),
+      )
       .finally(() => !cancelled && setProfileLoading(false));
     return () => {
       cancelled = true;
@@ -126,7 +134,7 @@ function AdvancedWorkspace() {
     try {
       setPortfolio(await fetchPortfolio(profileId));
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause), { id: "portfolio-refresh-error" });
     }
   }, [profileId]);
 
@@ -137,10 +145,14 @@ function AdvancedWorkspace() {
     return () => window.clearInterval(id);
   }, [profileId, refreshPortfolio]);
 
+  useEffect(() => {
+    if (portfolio?.activityError)
+      toast.error(portfolio.activityError, { id: "portfolio-activity-error" });
+  }, [portfolio?.activityError]);
+
   async function handleCreateProfile() {
     if (!wallet) return;
     setProfileLoading(true);
-    setError(null);
     try {
       const id = await createProfile({
         account: wallet.address,
@@ -151,7 +163,7 @@ function AdvancedWorkspace() {
     } catch (cause) {
       const existing = await resolveProfile(wallet.address).catch(() => null);
       if (existing) setProfileId(existing);
-      else setError(getErrorMessage(cause));
+      else toast.error(getErrorMessage(cause));
     } finally {
       setProfileLoading(false);
     }
@@ -176,10 +188,10 @@ function AdvancedWorkspace() {
         {(["supply", "borrow", "portfolio"] as const).map((item) => (
           <Button
             type="button"
-            className={
+            variant={
               tab === item || (item === "portfolio" && (tab === "repay" || tab === "withdraw"))
-                ? "active"
-                : ""
+                ? "secondary"
+                : "ghost"
             }
             key={item}
             onClick={() => setTab(item)}
@@ -194,13 +206,10 @@ function AdvancedWorkspace() {
         profileId={profileId}
         loading={Boolean(profileId && !portfolio)}
       />
-      {portfolio?.activityError ? <InlineNotice>{portfolio.activityError}</InlineNotice> : null}
-      {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
-
       {!wallet ? (
         <ConnectState />
       ) : profileLoading ? (
-        <ProfileSkeleton />
+        <AdvancedProfileLoading />
       ) : !profileId ? (
         <section className="profile-state">
           <div>
@@ -213,6 +222,7 @@ function AdvancedWorkspace() {
           </div>
           <Button
             className="primary-action"
+            size="lg"
             type="button"
             onClick={() => void handleCreateProfile()}
           >
@@ -220,7 +230,11 @@ function AdvancedWorkspace() {
           </Button>
         </section>
       ) : !market ? (
-        <ProfileSkeleton />
+        tab === "portfolio" ? (
+          <AdvancedPortfolioLoading />
+        ) : (
+          <AdvancedComposerLoading />
+        )
       ) : (
         <div className="advanced-content">
           {tab === "supply" ? (
@@ -290,7 +304,6 @@ function TransactionComposer(props: {
   const [amount, setAmount] = useState("");
   const [destination, setDestination] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [supplyFlow, setSupplyFlow] = useState<SupplyFlow | null>(null);
   const [inflowQuote, setInflowQuote] = useState<InflowQuote | null>(null);
   const [outflow, setOutflow] = useState<OutflowDetails | null>(null);
@@ -308,28 +321,14 @@ function TransactionComposer(props: {
     try {
       const parsed = parseDecimalToBaseUnits(amount, route.decimals);
       if (parsed <= 0n) return "Enter an amount greater than zero.";
-      if (props.mode === "borrow") {
-        const minimum = getMinimumBorrow(route);
-        if (parsed < minimum)
-          return `Minimum borrow is ${formatBaseUnits(minimum, route.decimals)} ${route.displaySymbol}.`;
-      }
-      if (props.mode === "withdraw") {
-        const minimum = getMinimumWithdraw(route);
-        if (parsed < minimum)
-          return `Minimum withdrawal is ${formatBaseUnits(minimum, route.decimals)} ${route.displaySymbol}.`;
-      }
       return null;
     } catch (cause) {
       return getErrorMessage(cause);
     }
   }, [amount, props.mode, route]);
-  const destinationError =
-    route && destination.trim() ? validateDestination(route, destination) : null;
-
   async function useMax() {
     if (!props.reserve || !route) return;
     setBusy(true);
-    setError(null);
     try {
       const value =
         props.mode === "repay"
@@ -337,7 +336,7 @@ function TransactionComposer(props: {
           : await getMaxWithdraw(props.profileId, route.poolId);
       setAmount(formatBaseUnits(value, route.decimals, Number(route.decimals)));
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -347,18 +346,12 @@ function TransactionComposer(props: {
     event.preventDefault();
     if (!route) return;
     setBusy(true);
-    setError(null);
     setSupplyFlow(null);
     setInflowQuote(null);
     setOutflow(null);
     try {
       const parsed = parseDecimalToBaseUnits(amount, route.decimals);
       if (props.mode === "borrow") {
-        const minimum = getMinimumBorrow(route);
-        if (parsed < minimum)
-          throw new Error(
-            `Minimum borrow is ${formatBaseUnits(minimum, route.decimals)} ${route.displaySymbol}.`,
-          );
         setOutflow(
           await borrowWithProfile({
             profileId: props.profileId,
@@ -399,7 +392,7 @@ function TransactionComposer(props: {
         if (flow.txid) await props.onComplete();
       }
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -408,12 +401,11 @@ function TransactionComposer(props: {
   async function submitTxid() {
     if (!supplyFlow || !txid.trim()) return;
     setBusy(true);
-    setError(null);
     try {
       await submitManualSupply(supplyFlow, txid);
       await props.onComplete();
     } catch (cause) {
-      setError(getErrorMessage(cause));
+      toast.error(getErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -422,7 +414,7 @@ function TransactionComposer(props: {
   return (
     <section className="advanced-composer">
       {props.onBack ? (
-        <Button className="back-action" type="button" onClick={props.onBack}>
+        <Button className="back-action" variant="link" type="button" onClick={props.onBack}>
           ← Back to portfolio
         </Button>
       ) : null}
@@ -495,7 +487,7 @@ function TransactionComposer(props: {
           </label>
           <strong>{route?.displaySymbol}</strong>
           {props.reserve ? (
-            <Button type="button" onClick={() => void useMax()}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => void useMax()}>
               Max
             </Button>
           ) : null}
@@ -510,14 +502,12 @@ function TransactionComposer(props: {
             <span>Receive on {route?.chain}</span>
             <Input
               aria-label={`${props.mode} destination`}
-              aria-invalid={Boolean(destinationError)}
               value={destination}
               placeholder={
                 route?.chain === Chain.ICP ? "IC principal or ICRC account" : "Destination address"
               }
               onChange={(event) => setDestination(event.target.value)}
             />
-            {destinationError ? <small className="field-error">{destinationError}</small> : null}
           </label>
         ) : null}
         {!automatic && (props.mode === "supply" || props.mode === "repay") ? (
@@ -526,17 +516,16 @@ function TransactionComposer(props: {
             the transaction reference below.
           </InlineNotice>
         ) : null}
-        {error ? <InlineNotice tone="error">{error}</InlineNotice> : null}
         <Button
           className="primary-action"
+          size="lg"
           type="submit"
           disabled={
             busy ||
             !amount ||
             !route ||
             Boolean(amountError) ||
-            ((props.mode === "borrow" || props.mode === "withdraw") &&
-              (!destination.trim() || Boolean(destinationError)))
+            ((props.mode === "borrow" || props.mode === "withdraw") && !destination.trim())
           }
         >
           {busy
@@ -620,6 +609,7 @@ function FlowReceipt({
       </span>
       <Button
         className="target-address"
+        variant="secondary"
         type="button"
         onClick={() =>
           void navigator.clipboard.writeText(flow.target.address).then(() => setCopied(true))
@@ -643,7 +633,7 @@ function FlowReceipt({
             value={txid}
             onChange={(event) => onTxid(event.target.value)}
           />
-          <Button type="button" disabled={busy || !txid.trim()} onClick={onSubmit}>
+          <Button type="button" size="lg" disabled={busy || !txid.trim()} onClick={onSubmit}>
             Track transfer
           </Button>
         </div>
@@ -659,7 +649,7 @@ function PortfolioView({
   portfolio: PortfolioData | null;
   onAction: (action: "repay" | "withdraw", reserve: UserReserve) => void;
 }) {
-  if (!portfolio) return <ProfileSkeleton />;
+  if (!portfolio) return <AdvancedPortfolioLoading />;
   const active = portfolio.reserves.filter(
     (item) => item.position.deposited > 0n || item.position.borrowed > 0n,
   );
@@ -709,12 +699,22 @@ function PortfolioView({
               </div>
               <div className="row-actions">
                 {reserve.position.borrowed > 0n ? (
-                  <Button type="button" onClick={() => onAction("repay", reserve)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAction("repay", reserve)}
+                  >
                     Repay
                   </Button>
                 ) : null}
                 {reserve.position.deposited > 0n ? (
-                  <Button type="button" onClick={() => onAction("withdraw", reserve)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onAction("withdraw", reserve)}
+                  >
                     Withdraw
                   </Button>
                 ) : null}
@@ -853,13 +853,5 @@ function ConnectState() {
       </div>
       <DynamicWidget />
     </section>
-  );
-}
-function ProfileSkeleton() {
-  return (
-    <div className="profile-skeleton">
-      <div className="skeleton line" />
-      <div className="skeleton card" />
-    </div>
   );
 }
