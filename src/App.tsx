@@ -639,6 +639,10 @@ function LoanReceipt({
   );
   const deposit = selectChainTarget(loan.initialDeposit.targets, selectedChain);
   const repayment = selectChainTarget(loan.repayment.targets, loan.borrow.chain, false);
+  const borrowDisplaySymbol =
+    loan.borrow.chain === Chain.ICP && loan.borrow.asset !== "ICP"
+      ? `ck${loan.borrow.asset}`
+      : loan.borrow.asset;
 
   useEffect(() => {
     if (!deposit)
@@ -651,10 +655,28 @@ function LoanReceipt({
     <section className="receipt" aria-live="polite">
       <div className="receipt-head">
         <div>
-          <p className="eyebrow">Loan {loan.ref}</p>
+          <p className="eyebrow">Existing loan</p>
           <h2>{loan.status.state.replaceAll("_", " ")}</h2>
         </div>
         <span className="status-dot">{activities.length} activities</span>
+      </div>
+      <div className="loan-identifiers" aria-label="Loan identifiers">
+        <CopyIdentifier label="Reference" value={loan.ref} />
+        <CopyIdentifier label="Loan ID" value={loan.loanId.toString()} />
+      </div>
+      <div className="receipt-terms" aria-label="Loan terms">
+        <span>
+          Collateral
+          <strong>
+            {formatBaseUnits(loan.collateral.amount, loan.collateral.decimals)} {loan.collateral.asset}
+          </strong>
+        </span>
+        <span>
+          Borrow
+          <strong>
+            {formatBaseUnits(loan.borrow.amount, loan.borrow.decimals)} {borrowDisplaySymbol}
+          </strong>
+        </span>
       </div>
       <div className="route-tabs">
         {depositEntries.map(([chain]) => (
@@ -686,6 +708,28 @@ function LoanReceipt({
         />
       ) : null}
     </section>
+  );
+}
+
+function CopyIdentifier({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      className="loan-identifier"
+      type="button"
+      variant="secondary"
+      aria-label={`Copy ${label.toLowerCase()} ${value}`}
+      onClick={() =>
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1500);
+        })
+      }
+    >
+      <span>{label}</span>
+      <code>{value}</code>
+      <small>{copied ? "Copied" : "Copy"}</small>
+    </Button>
   );
 }
 

@@ -787,6 +787,50 @@ code {
 .receipt-head h2 {
   text-transform: capitalize;
 }
+.loan-identifiers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.loan-identifier {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  justify-content: stretch;
+  text-align: left;
+}
+.loan-identifier span,
+.loan-identifier small {
+  color: var(--gray-tertiary);
+  font-size: 0.7rem;
+}
+.loan-identifier code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.receipt-terms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 0.875rem;
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+.receipt-terms span {
+  display: grid;
+  gap: 0.15rem;
+  color: var(--gray-tertiary);
+  font-size: 0.75rem;
+}
+.receipt-terms strong {
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
 .route-tabs {
   display: flex;
   gap: 2px;

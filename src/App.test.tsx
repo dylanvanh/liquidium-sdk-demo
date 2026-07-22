@@ -232,7 +232,10 @@ describe("product mode navigation", () => {
     fireEvent.click(await screen.findByRole("button", { name: /ABC123/i }));
 
     await waitFor(() => expect(mocks.fetchLoanTracking).toHaveBeenCalledWith(7n));
-    expect(await screen.findByText("Loan ABC123")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Copy reference ABC123" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copy loan id 7" })).toBeTruthy();
+    expect(screen.getByText("0.001 BTC")).toBeTruthy();
+    expect(screen.getByText("25 USDC")).toBeTruthy();
   });
 
   it("preserves an already-created loan reference and blocks duplicate creation", async () => {
@@ -258,7 +261,7 @@ describe("product mode navigation", () => {
     ).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Load created loan" }));
     await waitFor(() => expect(mocks.fetchLoanTracking).toHaveBeenCalledWith(7n));
-    expect(await screen.findByText("Loan ABC123")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Copy reference ABC123" })).toBeTruthy();
     expect(mocks.createInstantLoan).toHaveBeenCalledTimes(1);
   });
 });
