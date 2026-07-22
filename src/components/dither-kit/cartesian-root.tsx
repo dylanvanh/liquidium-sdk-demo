@@ -11,6 +11,7 @@ import type { BloomInput } from "./dither-paint";
 import { cn } from "./lib";
 import type { StackType } from "./scales";
 import { useChartDimensions } from "./use-chart-dimensions";
+import { useThemeTick } from "./use-theme-tick";
 
 // `object` rather than `Record<string, unknown>`: interfaces don't get an
 // implicit index signature, so interface-typed rows failed to satisfy the
@@ -93,6 +94,7 @@ export function CartesianRoot<TData extends Row>({
 }) {
   const { ref, size } = useChartDimensions<HTMLDivElement>();
   const margins = { ...DEFAULT_MARGINS, ...marginsProp };
+  const themeTick = useThemeTick();
 
   const ctx = useChartController({
     chartType,
@@ -104,7 +106,7 @@ export function CartesianRoot<TData extends Row>({
     margins,
     animate,
     animationDuration,
-    replayToken,
+    replayToken: replayToken + themeTick,
     markerIndex,
     hovered,
     bloom,

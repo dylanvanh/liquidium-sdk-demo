@@ -21,7 +21,7 @@ export function InsightsLoading() {
         <div className="insights-refresh insights-loading-status" role="status">
           <span>Connecting to the SDK</span>
           <span className="insights-loading-badge">
-            <RefreshCw aria-hidden="true" className="is-spinning" />
+            <RefreshCw aria-hidden="true" className="is-spinning" size={14} />
             Fetching mainnet
           </span>
         </div>

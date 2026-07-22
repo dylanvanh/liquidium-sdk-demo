@@ -123,7 +123,7 @@ function AdvancedHealthLoading() {
 function LoadingBadge({ children }: { children: ReactNode }) {
   return (
     <span className="loading-status-badge" role="status">
-      <RefreshCw aria-hidden="true" className="is-spinning" />
+      <RefreshCw aria-hidden="true" className="is-spinning" size={14} />
       {children}
     </span>
   );

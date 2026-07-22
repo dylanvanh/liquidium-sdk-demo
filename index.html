@@ -1,9 +1,22 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#061013" />
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      try {
+        var storedTheme = localStorage.getItem("liquidium-theme");
+        var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (storedTheme === "dark" || (!storedTheme && prefersDark)) {
+          document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = "dark";
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute("content", "#0c0c0d");
+        }
+      } catch (error) {}
+    </script>
     <meta
       name="description"
       content="A focused Liquidium SDK demo for simple loans and advanced cross-chain lending."

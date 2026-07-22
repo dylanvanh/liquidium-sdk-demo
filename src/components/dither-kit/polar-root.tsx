@@ -8,6 +8,7 @@ import { cn } from "./lib";
 import { axisAtAngle, sliceAtAngle } from "./polar";
 import { PolarChartContext, usePolarController } from "./polar-context";
 import { useChartDimensions } from "./use-chart-dimensions";
+import { useThemeTick } from "./use-theme-tick";
 
 // `object` rather than `Record<string, unknown>`: interfaces don't get an
 // implicit index signature, so interface-typed rows failed to satisfy the
@@ -71,6 +72,7 @@ export function PolarRoot<TData extends Row>({
 }: PolarRootProps<TData>) {
   const { ref, size } = useChartDimensions<HTMLDivElement>();
   const margins = { ...DEFAULT_POLAR_MARGINS, ...marginsProp };
+  const themeTick = useThemeTick();
 
   const ctx = usePolarController({
     chartType,
@@ -84,7 +86,7 @@ export function PolarRoot<TData extends Row>({
     margins,
     animate,
     animationDuration,
-    replayToken,
+    replayToken: replayToken + themeTick,
     bloom,
     bloomOnHover,
     defaultSelectedDataKey,

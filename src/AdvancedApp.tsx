@@ -181,7 +181,7 @@ function AdvancedWorkspace() {
           <p className="eyebrow">Profile lending</p>
           <h1 id="advanced-title">Manage liquidity across every supported route.</h1>
         </div>
-        <DynamicWidget />
+        {wallet ? <DynamicWidget /> : null}
       </div>
 
       <nav className="advanced-tabs" aria-label="Advanced lending action">
@@ -774,7 +774,7 @@ function ActivityList({ activities }: { activities: Activity[] }) {
                         <span>
                           {label} · {formatTransactionId(transactionId)}
                         </span>
-                        <ExternalLink aria-hidden="true" size={13} strokeWidth={2} />
+                        <ExternalLink aria-hidden="true" size={14} strokeWidth={2} />
                       </a>
                     ))}
                   </div>

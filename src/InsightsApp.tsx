@@ -173,8 +173,6 @@ export default function InsightsApp() {
                   data={rows}
                   config={CAPITAL_CONFIG}
                   margins={{ top: 34, right: 12, bottom: 28, left: 58 }}
-                  bloom="low"
-                  bloomOnHover
                 >
                   <Grid />
                   <XAxis dataKey="asset" />
@@ -202,8 +200,6 @@ export default function InsightsApp() {
                   nameKey="asset"
                   innerRadius={0.58}
                   margins={{ top: 34 }}
-                  bloom="low"
-                  bloomOnHover
                 >
                   <Legend isClickable align="center" />
                   <Tooltip valueFormatter={formatUsd} variant="frosted-glass" />

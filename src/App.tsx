@@ -14,8 +14,9 @@ import { Switch } from "@/components/ui/switch";
 import { AssetIcon } from "@/components/asset-icon";
 import { AdvancedLoading } from "@/components/advanced-loading";
 import { InsightsLoading } from "@/components/insights-loading";
-import { Code2, PackageOpen, RefreshCw } from "lucide-react";
+import { Code2, Moon, PackageOpen, RefreshCw, Sun } from "lucide-react";
 import { toast } from "sonner";
+import { toggleTheme, useTheme } from "./theme";
 import {
   DEPOSIT_WINDOW_SECONDS,
   InstantLoanRecoveryError,
@@ -95,9 +96,9 @@ export function App() {
             </Button>
           ))}
         </nav>
-        <Badge className="network-badge" variant="outline">
-          <i /> Mainnet
-        </Badge>
+        <div className="topbar-actions">
+          <ThemeToggle />
+        </div>
       </header>
 
       <main id="workspace" className="workspace">
@@ -127,7 +128,7 @@ export function App() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Code2 aria-hidden="true" size={16} />
+            <Code2 aria-hidden="true" size={14} />
             Demo on GitHub
           </a>
           <a
@@ -135,7 +136,7 @@ export function App() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <PackageOpen aria-hidden="true" size={16} />
+            <PackageOpen aria-hidden="true" size={14} />
             Liquidium SDK on GitHub
           </a>
         </nav>
@@ -150,6 +151,24 @@ function getAppModeFromPathname(pathname: string): AppMode {
   if (normalizedPathname === APP_MODE_PATHS.advanced) return "advanced";
   if (normalizedPathname === APP_MODE_PATHS.simple) return "simple";
   return "insights";
+}
+
+function ThemeToggle() {
+  const theme = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <Button
+      className="theme-toggle"
+      variant="ghost"
+      size="icon"
+      type="button"
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-pressed={isDark}
+      onClick={toggleTheme}
+    >
+      {isDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+    </Button>
+  );
 }
 
 function SimpleLoan() {
