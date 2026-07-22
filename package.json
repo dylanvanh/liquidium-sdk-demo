@@ -53,7 +53,7 @@
     "jsdom": "27.4.0",
     "typescript": "^6.0.3",
     "vite-plus": "^0.1.22",
-    "vitest": "4.0.15"
+    "vitest": "4.1.0"
   },
   "packageManager": "pnpm@11.2.2"
 }
