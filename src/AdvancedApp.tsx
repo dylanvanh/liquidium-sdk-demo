@@ -48,13 +48,10 @@ import {
   getInflowQuote,
   getMaxRepay,
   getMaxWithdraw,
-  getMinimumBorrow,
-  getMinimumWithdraw,
   parseDecimalToBaseUnits,
   resolveProfile,
   routeKey,
   submitManualSupply,
-  validateDestination,
   borrowWithProfile,
   withdrawWithProfile,
   type AssetRoute,
@@ -324,24 +321,11 @@ function TransactionComposer(props: {
     try {
       const parsed = parseDecimalToBaseUnits(amount, route.decimals);
       if (parsed <= 0n) return "Enter an amount greater than zero.";
-      if (props.mode === "borrow") {
-        const minimum = getMinimumBorrow(route);
-        if (parsed < minimum)
-          return `Minimum borrow is ${formatBaseUnits(minimum, route.decimals)} ${route.displaySymbol}.`;
-      }
-      if (props.mode === "withdraw") {
-        const minimum = getMinimumWithdraw(route);
-        if (parsed < minimum)
-          return `Minimum withdrawal is ${formatBaseUnits(minimum, route.decimals)} ${route.displaySymbol}.`;
-      }
       return null;
     } catch (cause) {
       return getErrorMessage(cause);
     }
   }, [amount, props.mode, route]);
-  const destinationError =
-    route && destination.trim() ? validateDestination(route, destination) : null;
-
   async function useMax() {
     if (!props.reserve || !route) return;
     setBusy(true);
@@ -368,11 +352,6 @@ function TransactionComposer(props: {
     try {
       const parsed = parseDecimalToBaseUnits(amount, route.decimals);
       if (props.mode === "borrow") {
-        const minimum = getMinimumBorrow(route);
-        if (parsed < minimum)
-          throw new Error(
-            `Minimum borrow is ${formatBaseUnits(minimum, route.decimals)} ${route.displaySymbol}.`,
-          );
         setOutflow(
           await borrowWithProfile({
             profileId: props.profileId,
@@ -523,14 +502,12 @@ function TransactionComposer(props: {
             <span>Receive on {route?.chain}</span>
             <Input
               aria-label={`${props.mode} destination`}
-              aria-invalid={Boolean(destinationError)}
               value={destination}
               placeholder={
                 route?.chain === Chain.ICP ? "IC principal or ICRC account" : "Destination address"
               }
               onChange={(event) => setDestination(event.target.value)}
             />
-            {destinationError ? <small className="field-error">{destinationError}</small> : null}
           </label>
         ) : null}
         {!automatic && (props.mode === "supply" || props.mode === "repay") ? (
@@ -548,8 +525,7 @@ function TransactionComposer(props: {
             !amount ||
             !route ||
             Boolean(amountError) ||
-            ((props.mode === "borrow" || props.mode === "withdraw") &&
-              (!destination.trim() || Boolean(destinationError)))
+            ((props.mode === "borrow" || props.mode === "withdraw") && !destination.trim())
           }
         >
           {busy

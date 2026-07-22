@@ -34,7 +34,6 @@ import {
   getRoute,
   routeKey,
   selectChainTarget,
-  validateDestination,
   type AssetRoute,
   type MarketData,
 } from "./liquidium";
@@ -226,15 +225,6 @@ function SimpleLoan() {
       }),
     [market, collateralRoute, borrowRoute, collateralInput, borrowInput],
   );
-  const borrowDestinationError =
-    borrowRoute && borrowDestination.trim()
-      ? validateDestination(borrowRoute, borrowDestination)
-      : null;
-  const refundDestinationError =
-    collateralRoute && refundDestination.trim()
-      ? validateDestination(collateralRoute, refundDestination)
-      : null;
-
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
     if (!collateralRoute || !borrowRoute || quote.status !== "ready") return;
@@ -368,7 +358,6 @@ function SimpleLoan() {
                   ? "IC principal or ICRC account"
                   : "Receiving address"
               }
-              error={borrowDestinationError}
             />
             <Field
               label="Collateral refund address"
@@ -379,7 +368,6 @@ function SimpleLoan() {
                   ? "IC principal or ICRC account"
                   : "Refund address"
               }
-              error={refundDestinationError}
             />
           </div>
 
@@ -405,8 +393,7 @@ function SimpleLoan() {
               quote.status !== "ready" ||
               quote.ltv.validationErrors.length > 0 ||
               !borrowDestination.trim() ||
-              !refundDestination.trim() ||
-              Boolean(borrowDestinationError || refundDestinationError)
+              !refundDestination.trim()
             }
           >
             {isCreating
