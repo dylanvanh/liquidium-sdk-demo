@@ -55,6 +55,7 @@ import {
   borrowWithProfile,
   withdrawWithProfile,
   type AssetRoute,
+  type EthSupplyMechanism,
   type InflowQuote,
   type MarketData,
   type PortfolioData,
@@ -308,8 +309,12 @@ function TransactionComposer(props: {
   const [inflowQuote, setInflowQuote] = useState<InflowQuote | null>(null);
   const [outflow, setOutflow] = useState<OutflowDetails | null>(null);
   const [txid, setTxid] = useState("");
+  const [ethSupplyMechanism, setEthSupplyMechanism] =
+    useState<EthSupplyMechanism>("depositAddress");
   const route = reserveRoutes.find((item) => routeKey(item) === selectedKey) ?? defaultRoute;
   const automatic = route?.chain === props.wallet.chain;
+  const canChooseEthSupplyMechanism =
+    route?.chain === Chain.ETH && (props.mode === "supply" || props.mode === "repay");
   const title = {
     supply: "Supply an asset",
     borrow: "Borrow against your portfolio",
@@ -387,6 +392,7 @@ function TransactionComposer(props: {
           action: props.mode === "supply" ? "deposit" : "repayment",
           account: automatic ? props.wallet.address : undefined,
           walletAdapter: automatic ? props.wallet.adapter : undefined,
+          ethMechanism: canChooseEthSupplyMechanism ? ethSupplyMechanism : undefined,
         });
         setSupplyFlow(flow);
         if (flow.txid) await props.onComplete();
@@ -497,6 +503,37 @@ function TransactionComposer(props: {
             {amountError}
           </span>
         ) : null}
+        {canChooseEthSupplyMechanism ? (
+          <fieldset className="supply-mechanism">
+            <legend>Supply method</legend>
+            <label>
+              <input
+                type="radio"
+                name="eth-supply-mechanism"
+                value="depositAddress"
+                checked={ethSupplyMechanism === "depositAddress"}
+                onChange={() => setEthSupplyMechanism("depositAddress")}
+              />
+              <span>
+                <strong>Deposit address</strong>
+                <small>Transfer tokens to a generated Liquidium address.</small>
+              </span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="eth-supply-mechanism"
+                value="contractInteraction"
+                checked={ethSupplyMechanism === "contractInteraction"}
+                onChange={() => setEthSupplyMechanism("contractInteraction")}
+              />
+              <span>
+                <strong>Contract interaction</strong>
+                <small>Approve and deposit through the Liquidium contract.</small>
+              </span>
+            </label>
+          </fieldset>
+        ) : null}
         {props.mode === "borrow" || props.mode === "withdraw" ? (
           <label className="route-select">
             <span>Receive on {route?.chain}</span>
@@ -575,6 +612,46 @@ function FlowReceipt({
 }) {
   const [copied, setCopied] = useState(false);
   const symbol = route.displaySymbol;
+  if (flow.type === "contractInteraction") {
+    return (
+      <section className="flow-receipt contract-receipt">
+        <div>
+          <p className="eyebrow">Contract interaction</p>
+          <h3>Transaction broadcast</h3>
+          <p className="receipt-description">
+            Your wallet submitted the {flow.status.operation} directly through the Liquidium
+            contract. No deposit-address transfer is required.
+          </p>
+        </div>
+        <dl className="transfer-breakdown">
+          <div>
+            <dt>Protocol amount</dt>
+            <dd>
+              {formatBaseUnits(quote.amount, route.decimals, Number(route.decimals))} {symbol}
+            </dd>
+          </div>
+          <div>
+            <dt>Wallet debit</dt>
+            <dd>
+              {formatBaseUnits(quote.total, route.decimals, Number(route.decimals))} {symbol}
+            </dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{flow.status.state.replaceAll("_", " ")}</dd>
+          </div>
+        </dl>
+        {flow.txid ? (
+          <div className="transaction-reference">
+            <span>Transaction hash</span>
+            <code>{flow.txid}</code>
+          </div>
+        ) : (
+          <InlineNotice>The wallet completed without returning a transaction hash.</InlineNotice>
+        )}
+      </section>
+    );
+  }
   return (
     <section className="flow-receipt">
       <div>

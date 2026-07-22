@@ -60,6 +60,8 @@ export type InflowQuote = {
   total: bigint;
 };
 
+export type EthSupplyMechanism = "depositAddress" | "contractInteraction";
+
 export class InstantLoanRecoveryError extends Error {
   readonly loanId: bigint;
   readonly ref: string;
@@ -309,14 +311,31 @@ export async function createSupplyFlow(params: {
   action: "deposit" | "repayment";
   account?: string;
   walletAdapter?: WalletAdapter;
+  ethMechanism?: EthSupplyMechanism;
 }): Promise<SupplyFlow> {
-  const { profileId, route, amount, action, account, walletAdapter } = params;
+  const { profileId, route, amount, action, account, walletAdapter, ethMechanism } = params;
+  const supplyAction = action === "deposit" ? SupplyAction.deposit : SupplyAction.repayment;
+  if (ethMechanism === "contractInteraction") {
+    if (route.chain !== Chain.ETH || !amount || !account || !walletAdapter) {
+      throw new Error("Contract interaction requires an ETH route and connected ETH wallet.");
+    }
+    return await client.lending.supply({
+      profileId,
+      poolId: route.poolId,
+      chain: Chain.ETH,
+      action: supplyAction,
+      mechanism: "contractInteraction",
+      amount,
+      account,
+      walletAdapter,
+    });
+  }
   if (amount && account && walletAdapter && route.chain !== Chain.ICP) {
     return await client.lending.supply({
       profileId,
       poolId: route.poolId,
       chain: route.chain,
-      action: action === "deposit" ? SupplyAction.deposit : SupplyAction.repayment,
+      action: supplyAction,
       amount,
       account,
       walletAdapter,
@@ -326,7 +345,7 @@ export async function createSupplyFlow(params: {
     profileId,
     poolId: route.poolId,
     chain: route.chain,
-    action: action === "deposit" ? SupplyAction.deposit : SupplyAction.repayment,
+    action: supplyAction,
   });
 }
 

@@ -301,6 +301,52 @@ describe("advanced profile flow", () => {
     );
   });
 
+  it("uses contract interaction when selected for an ETH supply", async () => {
+    // given
+    const transactionHash = "0x167a64a1730ebc6f8c40ae616140e2af3a51c608c91aea95be95fe65b5102194";
+    mocks.createSupplyFlow.mockResolvedValueOnce({
+      type: "contractInteraction",
+      target: {
+        poolId: pool.id,
+        asset: Asset.USDT,
+        chain: Chain.ETH,
+        action: "deposit",
+        address: "0x2222222222222222222222222222222222222222",
+      },
+      txid: transactionHash,
+      status: {
+        operation: "deposit",
+        state: "processing",
+        confirmations: null,
+        requiredConfirmations: null,
+      },
+      submit: vi.fn(),
+    } as SupplyFlow);
+    await renderAdvanced();
+    await screen.findByRole("heading", { name: "Supply an asset" });
+    fireEvent.change(screen.getByLabelText("supply amount"), { target: { value: "12" } });
+    fireEvent.click(screen.getByLabelText(/Contract interaction/));
+
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Supply USDT" }));
+
+    // then
+    await waitFor(() =>
+      expect(mocks.createSupplyFlow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ethMechanism: "contractInteraction",
+          amount: 12_000_010n,
+          account: "0x1111111111111111111111111111111111111111",
+          walletAdapter: mocks.connectedWallet.current?.adapter,
+        }),
+      ),
+    );
+    expect(await screen.findByText("Transaction broadcast")).toBeTruthy();
+    expect(screen.getByText(transactionHash)).toBeTruthy();
+    expect(screen.getByText(/No deposit-address transfer is required/)).toBeTruthy();
+    expect(screen.queryByText("ETH address")).toBeNull();
+  });
+
   it("opens repayment from a reserve and loads the SDK maximum", async () => {
     await renderAdvanced();
     await screen.findByRole("heading", { name: "Supply an asset" });
