@@ -2,17 +2,13 @@ import {
   Asset,
   Chain,
   SimpleLoanCreatedError,
-  LiquidiumAccountType,
   LiquidiumClient,
   RATE_DECIMALS,
   SupplyAction,
-  getMinimumBorrowAmount,
-  getMinimumWithdrawAmount,
   type Activity,
   type AssetIdentifier,
   type AssetPrices,
   type CreateSimpleLoanRequest,
-  type LiquidiumAccountInput,
   type LiquidiumStatus,
   type LtvCalculation,
   type OutflowDetails,
@@ -24,11 +20,6 @@ import {
   type UserReserve,
   type WalletAdapter,
 } from "@liquidium/client";
-import { decodeIcrcAccount } from "@icp-sdk/canisters/ledger/icrc";
-import { isIcpAccountIdentifier } from "@icp-sdk/canisters/ledger/icp";
-import { Principal } from "@icp-sdk/core/principal";
-import { Network, validate as validateBitcoinAddress } from "bitcoin-address-validation";
-import { isAddress as isEthereumAddress } from "viem";
 
 export const POLL_INTERVAL_MS = 4_000;
 export const DEPOSIT_WINDOW_SECONDS = 3_600n;
@@ -152,50 +143,6 @@ export function selectChainTarget<T>(
   return Object.values(targets).find((target): target is T => Boolean(target));
 }
 
-export function validateDestination(route: AssetIdentifier, value: string): string | null {
-  const address = value.trim();
-  if (!address) return "Enter a destination address.";
-
-  if (route.chain === Chain.ETH) {
-    return isEthereumAddress(address) ? null : "Enter a valid Ethereum mainnet address.";
-  }
-  if (route.chain === Chain.BTC) {
-    return validateBitcoinAddress(address, Network.mainnet)
-      ? null
-      : "Enter a valid Bitcoin mainnet address.";
-  }
-  if (route.chain !== Chain.ICP) return "This delivery route is not supported.";
-
-  if (route.asset !== Asset.ICP) {
-    return isPrincipal(address)
-      ? null
-      : `${route.asset} on ICP must be delivered to an IC principal.`;
-  }
-  if (isPrincipal(address) || isIcpAccountIdentifier(address) || isIcrcAddress(address))
-    return null;
-  return "Enter an IC principal, ICP account identifier, or ICRC account.";
-}
-
-export function buildTypedDestination(
-  route: AssetIdentifier,
-  value: string,
-): LiquidiumAccountInput {
-  const address = value.trim();
-  const validationError = validateDestination(route, address);
-  if (validationError) throw new Error(validationError);
-
-  if (route.chain !== Chain.ICP) {
-    return { type: LiquidiumAccountType.ChainAddress, address };
-  }
-  if (route.asset !== Asset.ICP || isPrincipal(address)) {
-    return { type: LiquidiumAccountType.IcPrincipal, address };
-  }
-  if (isIcpAccountIdentifier(address)) {
-    return { type: LiquidiumAccountType.IcpAccountIdentifier, address };
-  }
-  return { type: LiquidiumAccountType.IcrcAccount, address };
-}
-
 export function buildQuoteState(params: {
   pools: Pool[];
   prices: AssetPrices;
@@ -290,11 +237,11 @@ export function buildInstantLoanRequest(params: {
       asset: borrowRoute.asset,
       chain: borrowRoute.chain,
       amount: quote.borrowAmount,
-      destination: buildTypedDestination(borrowRoute, borrowDestination),
+      destination: borrowDestination.trim(),
     } as CreateSimpleLoanRequest["borrow"],
     refund: {
       chain: collateralRoute.chain,
-      destination: buildTypedDestination(collateralRoute, refundDestination),
+      destination: refundDestination.trim(),
     },
     ltvMaxBps: quote.ltv.maxAllowedLtvBps,
     depositWindowSeconds: DEPOSIT_WINDOW_SECONDS,
@@ -407,7 +354,7 @@ export async function borrowWithProfile(params: {
     poolId: params.route.poolId,
     amount: params.amount,
     chain: params.route.chain,
-    receiver: buildTypedDestination(params.route, params.receiver),
+    receiver: params.receiver.trim(),
     signerWalletAddress: params.signerWalletAddress,
     signerChain: params.signerChain,
     signerWalletAdapter: params.signerWalletAdapter,
@@ -428,7 +375,7 @@ export async function withdrawWithProfile(params: {
     poolId: params.route.poolId,
     amount: params.amount,
     chain: params.route.chain,
-    receiver: buildTypedDestination(params.route, params.receiver),
+    receiver: params.receiver.trim(),
     signerWalletAddress: params.signerWalletAddress,
     signerChain: params.signerChain,
     signerWalletAdapter: params.signerWalletAdapter,
@@ -441,14 +388,6 @@ export async function getMaxRepay(profileId: string, poolId: string): Promise<bi
 
 export async function getMaxWithdraw(profileId: string, poolId: string): Promise<bigint> {
   return (await client.positions.getFullWithdrawAmount(profileId, poolId)).amount;
-}
-
-export function getMinimumBorrow(route?: AssetRoute): bigint {
-  return route ? getMinimumBorrowAmount(route.asset) : 0n;
-}
-
-export function getMinimumWithdraw(route?: AssetRoute): bigint {
-  return route ? getMinimumWithdrawAmount(route.asset) : 0n;
 }
 
 export function parseDecimalToBaseUnits(value: string, decimals: bigint): bigint {
@@ -543,22 +482,4 @@ export function formatQuoteErrors(ltv: LtvCalculation): string {
 
 export function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unexpected error.";
-}
-
-function isPrincipal(value: string): boolean {
-  try {
-    Principal.fromText(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function isIcrcAddress(value: string): boolean {
-  try {
-    decodeIcrcAccount(value);
-    return true;
-  } catch {
-    return false;
-  }
 }

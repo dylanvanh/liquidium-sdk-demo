@@ -3,7 +3,6 @@ import {
   Asset,
   Chain,
   SimpleLoanCreatedError,
-  LiquidiumAccountType,
   type SimpleLoan,
   type Pool,
 } from "@liquidium/client";
@@ -11,7 +10,6 @@ import {
   InstantLoanRecoveryError,
   buildAssetRoutes,
   buildInstantLoanRequest,
-  buildTypedDestination,
   formatActivityStatusDetail,
   formatBaseUnits,
   formatHealthFactor,
@@ -22,7 +20,6 @@ import {
   routeKey,
   recoverCreatedInstantLoan,
   selectChainTarget,
-  validateDestination,
   type AssetRoute,
   type QuoteState,
 } from "./liquidium";
@@ -115,8 +112,9 @@ describe("portfolio display formatting", () => {
   });
 });
 
-describe("instant-loan RC request", () => {
+describe("simple-loan request", () => {
   it("keeps transfer chains on borrow and refund legs", () => {
+    // given
     const collateralRoute: AssetRoute = {
       chain: Chain.ICP,
       asset: Asset.BTC,
@@ -137,6 +135,8 @@ describe("instant-loan RC request", () => {
       borrowAmount: 10_000_000n,
       ltv: { maxAllowedLtvBps: 6_000n },
     } as Extract<QuoteState, { status: "ready" }>;
+
+    // when
     const request = buildInstantLoanRequest({
       collateralRoute,
       borrowRoute,
@@ -145,15 +145,16 @@ describe("instant-loan RC request", () => {
       refundDestination: "aaaaa-aa",
     });
 
+    // then
     expect(request.collateral).toMatchObject({ poolId: "btc-pool", asset: Asset.BTC });
     expect(request.borrow).toMatchObject({
       chain: Chain.ICP,
       asset: Asset.USDT,
-      destination: { type: LiquidiumAccountType.IcPrincipal, address: "aaaaa-aa" },
+      destination: "aaaaa-aa",
     });
     expect(request.refund).toEqual({
       chain: Chain.ICP,
-      destination: { type: LiquidiumAccountType.IcPrincipal, address: "aaaaa-aa" },
+      destination: "aaaaa-aa",
     });
   });
 
@@ -182,22 +183,5 @@ describe("instant-loan RC request", () => {
       loanId: 42n,
       ref: created.ref,
     } satisfies Partial<InstantLoanRecoveryError>);
-  });
-});
-
-describe("destination validation", () => {
-  it("validates and types native and ICP-chain destinations", () => {
-    const eth = { chain: Chain.ETH, asset: Asset.USDC } as const;
-    const btc = { chain: Chain.BTC, asset: Asset.BTC } as const;
-    const ck = { chain: Chain.ICP, asset: Asset.BTC } as const;
-
-    expect(validateDestination(eth, "0x1111111111111111111111111111111111111111")).toBeNull();
-    expect(validateDestination(btc, "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh")).toBeNull();
-    expect(validateDestination(ck, "aaaaa-aa")).toBeNull();
-    expect(validateDestination(ck, "not-a-principal")).toContain("IC principal");
-    expect(buildTypedDestination(eth, "0x1111111111111111111111111111111111111111")).toEqual({
-      type: LiquidiumAccountType.ChainAddress,
-      address: "0x1111111111111111111111111111111111111111",
-    });
   });
 });

@@ -385,7 +385,8 @@ describe("advanced profile flow", () => {
     expect(await screen.findByRole("heading", { name: "No positions yet" })).toBeTruthy();
   });
 
-  it("validates minimums and destination formats before signing", async () => {
+  it("passes protocol-specific validation to the SDK", async () => {
+    // given
     await renderAdvanced();
     await screen.findByRole("heading", { name: "Supply an asset" });
     fireEvent.click(screen.getByRole("button", { name: "borrow" }));
@@ -394,9 +395,15 @@ describe("advanced profile flow", () => {
       target: { value: "not-an-address" },
     });
 
-    expect(screen.getByText(/minimum borrow/i)).toBeTruthy();
-    expect(screen.getByText(/valid Ethereum mainnet address/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Borrow USDT" }).hasAttribute("disabled")).toBe(true);
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Borrow USDT" }));
+
+    // then
+    await waitFor(() =>
+      expect(mocks.borrowWithProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 500_000n, receiver: "not-an-address" }),
+      ),
+    );
   });
 
   it("shows signed outflow success and failure receipts without broadcasting in tests", async () => {
