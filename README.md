@@ -1,6 +1,6 @@
 # Liquidium SDK Demo
 
-A client-side React demo for `@liquidium/client` `0.6.0`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
+A client-side React demo for `@liquidium/client` `0.7.0`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
 
 ## Included flows
 
@@ -10,6 +10,7 @@ A client-side React demo for `@liquidium/client` `0.6.0`. It mirrors Liquidium's
 - Manual ICRC transfer instructions with the live ledger fee, exact fee-inclusive wallet debit, copyable account details, and transaction-reference tracking for ICP-chain assets.
 - SDK-owned destination and protocol validation, including explicit recovery when a Simple Loan was created but could not be hydrated immediately.
 - Live Insights charts for supplied capital, borrowed capital, deposit composition, utilization, and rates across SDK-supported pools.
+- Protocol-wide activity with operation filters, transaction links, and automatic refreshes through the SDK history module.
 
 The app uses Liquidium's bundled mainnet canisters and service defaults. It does not broadcast transactions during automated tests.
 
@@ -53,5 +54,6 @@ docker buildx build \
 - `src/App.tsx` contains the wallet-free Simple flow and shared shell.
 - `src/AdvancedApp.tsx` is lazy-loaded and contains Dynamic-backed profile flows.
 - `src/InsightsApp.tsx` derives live market charts and the asset table from SDK pool snapshots.
+- `src/ActivityApp.tsx` displays recent protocol lending events from the SDK history module.
 - `src/liquidium.ts` owns request construction, route mapping, and SDK orchestration.
 - `src/dynamic-wallet.ts` adapts Dynamic Ethereum and Bitcoin wallets to the Liquidium `WalletAdapter` interface.

@@ -468,7 +468,7 @@ export function formatHealthFactor(
   >,
 ): string {
   if (summary.totalDebtUsd === 0n) return "∞";
-  if (summary.healthFactor > 0n) {
+  if (summary.healthFactor !== null && summary.healthFactor > 0n) {
     const formatted = formatBaseUnits(summary.healthFactor, RATE_DECIMALS, 2);
     return formatted === "0" ? "<0.01" : formatted;
   }

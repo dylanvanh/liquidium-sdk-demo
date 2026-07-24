@@ -41,11 +41,13 @@ import {
 
 const AdvancedApp = lazy(() => import("./AdvancedApp"));
 const InsightsApp = lazy(() => import("./InsightsApp"));
-type AppMode = "simple" | "advanced" | "insights";
+const ActivityApp = lazy(() => import("./ActivityApp"));
+type AppMode = "simple" | "advanced" | "insights" | "activity";
 const APP_MODE_PATHS: Record<AppMode, string> = {
   simple: "/simple-loan",
   advanced: "/advanced",
   insights: "/",
+  activity: "/activity",
 };
 
 export function App() {
@@ -83,7 +85,7 @@ export function App() {
           <span className="brand-edition">SDK / Demo</span>
         </a>
         <nav className="mode-nav" aria-label="Product mode">
-          {(["insights", "simple", "advanced"] as const).map((item) => (
+          {(["insights", "simple", "advanced", "activity"] as const).map((item) => (
             <Button
               className="mode-button"
               variant={mode === item ? "secondary" : "ghost"}
@@ -92,7 +94,13 @@ export function App() {
               type="button"
               onClick={() => navigateToMode(item)}
             >
-              {item === "simple" ? "Simple loan" : item === "advanced" ? "Advanced" : "Insights"}
+              {item === "simple"
+                ? "Simple loan"
+                : item === "advanced"
+                  ? "Advanced"
+                  : item === "activity"
+                    ? "Activity"
+                    : "Insights"}
             </Button>
           ))}
         </nav>
@@ -107,6 +115,10 @@ export function App() {
         ) : mode === "advanced" ? (
           <Suspense fallback={<AdvancedLoading />}>
             <AdvancedApp />
+          </Suspense>
+        ) : mode === "activity" ? (
+          <Suspense fallback={<InsightsLoading />}>
+            <ActivityApp />
           </Suspense>
         ) : (
           <Suspense fallback={<InsightsLoading />}>
@@ -150,6 +162,7 @@ function getAppModeFromPathname(pathname: string): AppMode {
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
   if (normalizedPathname === APP_MODE_PATHS.advanced) return "advanced";
   if (normalizedPathname === APP_MODE_PATHS.simple) return "simple";
+  if (normalizedPathname === APP_MODE_PATHS.activity) return "activity";
   return "insights";
 }
 

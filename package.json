@@ -19,7 +19,7 @@
     "@fontsource-variable/lora": "5.2.8",
     "@fontsource-variable/plus-jakarta-sans": "5.2.8",
     "@fontsource/ibm-plex-mono": "5.2.7",
-    "@liquidium/client": "0.6.0",
+    "@liquidium/client": "0.7.0",
     "@tailwindcss/vite": "^4.3.0",
     "@vitejs/plugin-react": "^6.0.2",
     "@web3icons/react": "4.1.19",
