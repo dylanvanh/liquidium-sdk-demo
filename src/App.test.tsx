@@ -46,6 +46,7 @@ vi.mock("./liquidium", async (importOriginal) => {
 import { App } from "./App";
 
 const btcPool = { id: "btc-pool", asset: Asset.BTC, chain: Chain.BTC, decimals: 8n } as Pool;
+const ethPool = { id: "eth-pool", asset: Asset.ETH, chain: Chain.ETH, decimals: 18n } as Pool;
 const usdcPool = { id: "usdc-pool", asset: Asset.USDC, chain: Chain.ETH, decimals: 6n } as Pool;
 const routes = [
   { poolId: btcPool.id, asset: Asset.BTC, chain: Chain.BTC, displaySymbol: "BTC", decimals: 8n },
@@ -58,6 +59,7 @@ const routes = [
     displaySymbol: "ckUSDC",
     decimals: 6n,
   },
+  { poolId: ethPool.id, asset: Asset.ETH, chain: Chain.ETH, displaySymbol: "ETH", decimals: 18n },
 ];
 
 const recoveredLoan = {
@@ -138,7 +140,7 @@ const recoveredLoan = {
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/simple-loan");
-  mocks.fetchMarketData.mockResolvedValue({ pools: [btcPool, usdcPool], prices: {}, routes });
+  mocks.fetchMarketData.mockResolvedValue({ pools: [btcPool, ethPool, usdcPool], prices: {}, routes });
   mocks.findLoans.mockResolvedValue([]);
   mocks.fetchLoanTracking.mockResolvedValue({
     loan: recoveredLoan,
@@ -210,6 +212,18 @@ describe("product mode navigation", () => {
     fireEvent.click(screen.getAllByText("ICP assets")[0]);
     await waitFor(() => expect(collateralSelect.value).toBe("ICP:BTC"));
     expect(screen.getByRole("option", { name: "ckBTC" })).toBeTruthy();
+  });
+
+  it("warns that native ETH destinations cannot be smart contract wallets", async () => {
+    // given
+    render(<App />);
+    const borrowSelect = (await screen.findByLabelText("You borrow asset")) as HTMLSelectElement;
+
+    // when
+    fireEvent.change(borrowSelect, { target: { value: "ETH:ETH" } });
+
+    // then
+    expect(screen.getByText(/smart contract wallets are not supported/i)).toBeTruthy();
   });
 
   it("recovers an address lookup candidate through canonical get", async () => {

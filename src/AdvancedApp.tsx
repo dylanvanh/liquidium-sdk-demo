@@ -7,6 +7,7 @@ import {
   useDynamicContext,
 } from "@dynamic-labs/sdk-react-core";
 import {
+  Asset,
   Chain,
   type Activity,
   type OutflowDetails,
@@ -315,6 +316,10 @@ function TransactionComposer(props: {
   const automatic = route?.chain === props.wallet.chain;
   const canChooseEthSupplyMechanism =
     route?.chain === Chain.ETH && (props.mode === "supply" || props.mode === "repay");
+  const hasNativeEthDestination =
+    route?.asset === Asset.ETH &&
+    route.chain === Chain.ETH &&
+    (props.mode === "borrow" || props.mode === "withdraw");
   const title = {
     supply: "Supply an asset",
     borrow: "Borrow against your portfolio",
@@ -546,6 +551,12 @@ function TransactionComposer(props: {
               onChange={(event) => setDestination(event.target.value)}
             />
           </label>
+        ) : null}
+        {hasNativeEthDestination ? (
+          <InlineNotice>
+            Native ETH destinations must be externally owned wallet addresses. Smart contract
+            wallets are not supported.
+          </InlineNotice>
         ) : null}
         {!automatic && (props.mode === "supply" || props.mode === "repay") ? (
           <InlineNotice>

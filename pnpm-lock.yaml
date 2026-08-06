@@ -30,8 +30,8 @@ importers:
         specifier: 5.2.7
         version: 5.2.7
       '@liquidium/client':
-        specifier: 0.7.0
-        version: 0.7.0(bufferutil@4.1.0)(typescript@6.0.3)(utf-8-validate@6.0.6)(zod@3.25.76)
+        specifier: 0.8.1
+        version: 0.8.1(bufferutil@4.1.0)(typescript@6.0.3)(utf-8-validate@6.0.6)(zod@3.25.76)
       '@tailwindcss/vite':
         specifier: ^4.3.0
         version: 4.3.0(vite@8.0.14(@types/node@26.1.1)(jiti@2.7.0))
@@ -806,8 +806,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@liquidium/client@0.7.0':
-    resolution: {integrity: sha512-uZMkQ3ULg1X0/8YadQXDqW4T1VN3eOtOQA+k39DdZ6c5KhHrvNq6wkCYpP8CZQSz5AgZ2myWk0mRnInFw1m22g==}
+  '@liquidium/client@0.8.1':
+    resolution: {integrity: sha512-jhYSqiNUHRHSeUKCx7+Z0Yj4Ouj5wfiSALpd0da3IPvFlOntOXQVc3vbMpifV7UXkzYQIR4WuyezjSiPMYIDeA==}
 
   '@lit-labs/ssr-dom-shim@1.6.0':
     resolution: {integrity: sha512-VHb0ALPMTlgKjM6yIxxoQNnpKyUKLD04VzeQdsiXkMqkvYlAHxq9glGLmgbb889/1GsohSOAjvQYoiBppXFqrQ==}
@@ -6288,7 +6288,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@liquidium/client@0.7.0(bufferutil@4.1.0)(typescript@6.0.3)(utf-8-validate@6.0.6)(zod@3.25.76)':
+  '@liquidium/client@0.8.1(bufferutil@4.1.0)(typescript@6.0.3)(utf-8-validate@6.0.6)(zod@3.25.76)':
     dependencies:
       '@dfinity/utils': 4.2.1(@icp-sdk/core@5.4.0)
       '@icp-sdk/canisters': 3.6.0(@dfinity/utils@4.2.1(@icp-sdk/core@5.4.0))(@icp-sdk/core@5.4.0)

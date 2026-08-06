@@ -63,6 +63,13 @@ const btcPool = {
   decimals: 8n,
   frozen: false,
 } as Pool;
+const ethPool = {
+  id: "eth-pool",
+  asset: Asset.ETH,
+  chain: Chain.ETH,
+  decimals: 18n,
+  frozen: false,
+} as Pool;
 const reserve = {
   pool,
   position: {
@@ -87,8 +94,8 @@ vi.mock("./liquidium", async (importOriginal) => {
   return {
     ...actual,
     fetchMarketData: vi.fn(async () => ({
-      pools: [pool, btcPool],
-      prices: { USDT: 1, BTC: 100_000 },
+      pools: [pool, btcPool, ethPool],
+      prices: { USDT: 1, BTC: 100_000, ETH: 4_000 },
       routes: [
         {
           poolId: pool.id,
@@ -117,6 +124,13 @@ vi.mock("./liquidium", async (importOriginal) => {
           chain: Chain.ICP,
           displaySymbol: "ckBTC",
           decimals: 8n,
+        },
+        {
+          poolId: ethPool.id,
+          asset: Asset.ETH,
+          chain: Chain.ETH,
+          displaySymbol: "ETH",
+          decimals: 18n,
         },
       ],
     })),
@@ -450,6 +464,19 @@ describe("advanced profile flow", () => {
         expect.objectContaining({ amount: 500_000n, receiver: "not-an-address" }),
       ),
     );
+  });
+
+  it("warns that native ETH outflows cannot use smart contract wallets", async () => {
+    // given
+    await renderAdvanced();
+    await screen.findByRole("heading", { name: "Supply an asset" });
+    fireEvent.click(screen.getByRole("button", { name: "borrow" }));
+
+    // when
+    await selectRoute("ETH on ETH");
+
+    // then
+    expect(screen.getByText(/smart contract wallets are not supported/i)).toBeTruthy();
   });
 
   it("shows signed outflow success and failure receipts without broadcasting in tests", async () => {

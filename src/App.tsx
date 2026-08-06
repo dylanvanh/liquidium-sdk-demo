@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  Asset,
   Chain,
   type Activity,
   type SimpleLoan,
@@ -245,6 +246,9 @@ function SimpleLoan() {
 
   const collateralRoute = market ? getRoute(market.routes, collateralKey) : undefined;
   const borrowRoute = market ? getRoute(market.routes, borrowKey) : undefined;
+  const hasNativeEthDestination =
+    (borrowRoute?.asset === Asset.ETH && borrowRoute.chain === Chain.ETH) ||
+    (collateralRoute?.asset === Asset.ETH && collateralRoute.chain === Chain.ETH);
   const quote = useMemo(
     () =>
       buildQuoteState({
@@ -402,6 +406,12 @@ function SimpleLoan() {
               }
             />
           </div>
+          {hasNativeEthDestination ? (
+            <InlineNotice>
+              Native ETH destinations must be externally owned wallet addresses. Smart contract
+              wallets are not supported.
+            </InlineNotice>
+          ) : null}
 
           <QuoteStrip quote={quote} loading={!market && !marketError} />
           {createdLoanRecovery ? (

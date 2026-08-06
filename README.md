@@ -1,6 +1,6 @@
 # Liquidium SDK Demo
 
-A client-side React demo for `@liquidium/client` `0.7.0`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
+A client-side React demo for `@liquidium/client` `0.8.1`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
 
 ## Included flows
 
@@ -22,7 +22,7 @@ Copy `.env.example` to `.env` and set a public Dynamic environment configured wi
 VITE_DYNAMIC_ENVIRONMENT_ID=
 ```
 
-`VITE_EVM_RPC_URL` and `VITE_INFURA_API_KEY` are optional. The implemented transfer/deposit-address flows do not require an RPC, but the client accepts either value for future contract-interaction work.
+`VITE_EVM_RPC_URL` and `VITE_INFURA_API_KEY` are optional. The SDK uses either value for stablecoin contract-interaction reads and best-effort native ETH destination checks. Transfer and deposit-address flows work without an RPC.
 
 Vite environment variables are bundled into browser code; do not put private credentials in them.
 
