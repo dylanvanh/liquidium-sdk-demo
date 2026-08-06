@@ -1,6 +1,6 @@
 # Liquidium SDK Demo
 
-A client-side React demo for `@liquidium/client` `0.8.1`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
+A client-side React demo for `@liquidium/client` `0.8.2`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
 
 ## Included flows
 
