@@ -52,7 +52,7 @@
     "@types/react-dom": "^19.2.3",
     "jsdom": "27.4.0",
     "typescript": "^6.0.3",
-    "vite-plus": "^0.1.22",
+    "vite-plus": "^1.1.0",
     "vitest": "4.1.0"
   },
   "packageManager": "pnpm@11.2.2"
