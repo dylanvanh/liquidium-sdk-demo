@@ -196,9 +196,7 @@ function SimpleLoan() {
   const [refundDestination, setRefundDestination] = useState("");
   const [loan, setLoan] = useState<SimpleLoan | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [selectedCollateralChain, setSelectedCollateralChain] = useState<
-    typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP
-  >(Chain.BTC);
+  const [selectedCollateralChain, setSelectedCollateralChain] = useState<Chain>(Chain.BTC);
   const [isCreating, setIsCreating] = useState(false);
   const [createdLoanRecovery, setCreatedLoanRecovery] = useState<InstantLoanRecoveryError | null>(
     null,
@@ -299,11 +297,7 @@ function SimpleLoan() {
       const tracking = await fetchLoanTracking(createdLoanRecovery.loanId);
       setLoan(tracking.loan);
       setActivities(tracking.activities);
-      const firstChain = Object.keys(tracking.loan.initialDeposit.targets)[0] as
-        | typeof Chain.BTC
-        | typeof Chain.ETH
-        | typeof Chain.ICP
-        | undefined;
+      const firstChain = Object.keys(tracking.loan.initialDeposit.targets)[0] as Chain | undefined;
       if (firstChain) setSelectedCollateralChain(firstChain);
       setCreatedLoanRecovery(null);
       if (tracking.activityError) toast.error(tracking.activityError);
@@ -342,9 +336,7 @@ function SimpleLoan() {
               setLoan(tracking.loan);
               setActivities(tracking.activities);
               const firstChain = Object.keys(tracking.loan.initialDeposit.targets)[0] as
-                | typeof Chain.BTC
-                | typeof Chain.ETH
-                | typeof Chain.ICP
+                | Chain
                 | undefined;
               if (firstChain) setSelectedCollateralChain(firstChain);
               setManageOpen(false);
@@ -649,14 +641,14 @@ function LoanReceipt({
 }: {
   loan: SimpleLoan;
   activities: Activity[];
-  selectedChain: typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP;
-  onChain: (chain: typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP) => void;
+  selectedChain: Chain;
+  onChain: (chain: Chain) => void;
 }) {
   const depositEntries = Object.entries(loan.initialDeposit.targets).filter(
     (
       entry,
     ): entry is [
-      typeof Chain.BTC | typeof Chain.ETH | typeof Chain.ICP,
+      Chain,
       NonNullable<(typeof loan.initialDeposit.targets)[keyof typeof loan.initialDeposit.targets]>,
     ] => Boolean(entry[1]),
   );
@@ -691,7 +683,8 @@ function LoanReceipt({
         <span>
           Collateral
           <strong>
-            {formatBaseUnits(loan.collateral.amount, loan.collateral.decimals)} {loan.collateral.asset}
+            {formatBaseUnits(loan.collateral.amount, loan.collateral.decimals)}{" "}
+            {loan.collateral.asset}
           </strong>
         </span>
         <span>

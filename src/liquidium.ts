@@ -15,6 +15,7 @@ import {
   type Pool,
   type SimpleLoan,
   type SimpleLoanFindResult,
+  type SigningChain,
   type SupplyFlow,
   type UserPositionSummary,
   type UserReserve,
@@ -60,6 +61,11 @@ export type InflowQuote = {
   total: bigint;
 };
 
+export interface ProfileInflowContext {
+  profileId: string;
+  action: "deposit" | "repayment";
+}
+
 export type EthSupplyMechanism = "depositAddress" | "contractInteraction";
 
 export class InstantLoanRecoveryError extends Error {
@@ -96,6 +102,7 @@ export async function fetchMarketData(): Promise<MarketData> {
 
 export function buildAssetRoutes(pools: Pool[]): AssetRoute[] {
   return pools.flatMap((pool) => {
+    if (pool.frozen) return [];
     const routes: AssetRoute[] = [];
     const add = (chain: AssetRoute["chain"], displaySymbol: string) => {
       routes.push({
@@ -110,6 +117,9 @@ export function buildAssetRoutes(pools: Pool[]): AssetRoute[] {
     if (pool.asset === Asset.BTC) {
       if (pool.chain === Chain.BTC) add(Chain.BTC, "BTC");
       add(Chain.ICP, "ckBTC");
+    } else if (pool.asset === Asset.SOL) {
+      if (pool.chain === Chain.SOL) add(Chain.SOL, "SOL");
+      add(Chain.ICP, "ckSOL");
     } else if (pool.asset === Asset.ICP) {
       add(Chain.ICP, "ICP");
     } else if (pool.asset === Asset.ETH) {
@@ -278,7 +288,7 @@ export async function resolveProfile(walletAddress: string): Promise<string | nu
 
 export async function createProfile(params: {
   account: string;
-  chain: typeof Chain.BTC | typeof Chain.ETH;
+  chain: SigningChain;
   walletAdapter: WalletAdapter;
 }): Promise<string> {
   return await client.accounts.createProfile(params);
@@ -349,10 +359,20 @@ export async function createSupplyFlow(params: {
   });
 }
 
-export async function getInflowQuote(route: AssetRoute, amount: bigint): Promise<InflowQuote> {
+export async function getInflowQuote(
+  route: AssetRoute,
+  amount: bigint,
+  context: ProfileInflowContext,
+): Promise<InflowQuote> {
   if (amount <= 0n) throw new Error("Enter an amount greater than zero.");
-  const estimate = await client.lending.estimateInflowFee(route);
-  return { amount, fee: estimate.totalFee, total: amount + estimate.totalFee };
+  const estimate = await client.lending.estimateInflowFee({ ...route, ...context });
+  const total = amount + estimate.totalFee;
+  if (estimate.minimumSendAmount !== undefined && total < estimate.minimumSendAmount) {
+    throw new Error(
+      `Transfer must be at least ${formatBaseUnits(estimate.minimumSendAmount, route.decimals, Number(route.decimals))} ${route.displaySymbol}, including inflow fees. Increase the amount.`,
+    );
+  }
+  return { amount, fee: estimate.totalFee, total };
 }
 
 export async function submitManualSupply(flow: SupplyFlow, txid: string): Promise<void> {
@@ -365,7 +385,7 @@ export async function borrowWithProfile(params: {
   amount: bigint;
   receiver: string;
   signerWalletAddress: string;
-  signerChain: typeof Chain.BTC | typeof Chain.ETH;
+  signerChain: SigningChain;
   signerWalletAdapter: WalletAdapter;
 }): Promise<OutflowDetails> {
   return await client.lending.borrow({
@@ -386,7 +406,7 @@ export async function withdrawWithProfile(params: {
   amount: bigint;
   receiver: string;
   signerWalletAddress: string;
-  signerChain: typeof Chain.BTC | typeof Chain.ETH;
+  signerChain: SigningChain;
   signerWalletAdapter: WalletAdapter;
 }): Promise<OutflowDetails> {
   return await client.lending.withdraw({

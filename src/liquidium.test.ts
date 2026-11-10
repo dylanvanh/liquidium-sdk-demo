@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Asset,
   Chain,
@@ -8,6 +8,8 @@ import {
 } from "@liquidium/client";
 import {
   InstantLoanRecoveryError,
+  client,
+  getInflowQuote,
   buildAssetRoutes,
   buildInstantLoanRequest,
   formatActivityStatusDetail,
@@ -24,12 +26,74 @@ import {
   type QuoteState,
 } from "./liquidium";
 
+afterEach(() => vi.restoreAllMocks());
+
 function pool(asset: Pool["asset"], id: string, decimals: bigint): Pool {
   const chain = asset === Asset.BTC ? Chain.BTC : asset === Asset.ICP ? Chain.ICP : Chain.ETH;
   return { asset, chain, id, decimals, frozen: false } as Pool;
 }
 
+describe("production SDK configuration", () => {
+  it("selects the bundled mainnet SOL pool for native SOL and ckSOL", async () => {
+    // given
+    const mainnetSolPool = {
+      ...pool(Asset.SOL, "xhh4q-qyaaa-aaaar-qci2q-cai", 9n),
+      chain: Chain.SOL,
+    };
+    const retiredSolPool = { ...mainnetSolPool, id: "retired-sol", frozen: true };
+    vi.spyOn(client.market, "listPools").mockResolvedValue([retiredSolPool, mainnetSolPool]);
+
+    // when
+    const nativePool = await client.market.findPool({ asset: Asset.SOL, chain: Chain.SOL });
+    const chainKeyPool = await client.market.findPool({ asset: Asset.SOL, chain: Chain.ICP });
+
+    // then
+    expect(nativePool.id).toBe(mainnetSolPool.id);
+    expect(chainKeyPool.id).toBe(mainnetSolPool.id);
+  });
+
+  it("uses the production SDK API without a deployment override", async () => {
+    // given
+    const fetchRequest = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ items: [] })));
+
+    // when
+    await client.history.getProtocolActivity();
+
+    // then
+    const EXPECTED_API_URL = "https://app.liquidium.fi/api/sdk/v2/history/activities";
+    expect(fetchRequest).toHaveBeenCalledExactlyOnceWith(EXPECTED_API_URL, expect.any(Object));
+  });
+});
+
 describe("Liquidium route helpers", () => {
+  it("exposes native SOL and ckSOL only for the unfrozen pool", () => {
+    // given
+    const activePool = { ...pool(Asset.SOL, "active-sol", 9n), chain: Chain.SOL };
+    const retiredPool = { ...activePool, id: "retired-sol", frozen: true };
+
+    // when
+    const routes = buildAssetRoutes([retiredPool, activePool]);
+
+    // then
+    expect(routes).toEqual([
+      {
+        poolId: activePool.id,
+        asset: Asset.SOL,
+        chain: Chain.SOL,
+        displaySymbol: "SOL",
+        decimals: 9n,
+      },
+      {
+        poolId: activePool.id,
+        asset: Asset.SOL,
+        chain: Chain.ICP,
+        displaySymbol: "ckSOL",
+        decimals: 9n,
+      },
+    ]);
+  });
   it("expands backing pools into native and ICP asset identifiers", () => {
     // given
     const pools = [
@@ -66,6 +130,64 @@ describe("Liquidium route helpers", () => {
       "icrc",
     );
     expect(selectChainTarget({ [Chain.BTC]: "native" }, Chain.ICP, false)).toBeUndefined();
+  });
+});
+
+describe("SOL inflow quotes", () => {
+  const route: AssetRoute = {
+    asset: Asset.SOL,
+    chain: Chain.SOL,
+    poolId: "xhh4q-qyaaa-aaaar-qci2q-cai",
+    displaySymbol: "SOL",
+    decimals: 9n,
+  };
+
+  it("includes the profile and repayment action in account-specific fee requests", async () => {
+    // given
+    const profileId = "test-profile";
+    const amount = 1_000_000n;
+    const fee = 500n;
+    const minimumSendAmount = 501n;
+    const estimate = vi
+      .spyOn(client.lending, "estimateInflowFee")
+      .mockResolvedValue({ totalFee: fee, minimumSendAmount });
+
+    // when
+    const quote = await getInflowQuote(route, amount, { profileId, action: "repayment" });
+
+    // then
+    expect(estimate).toHaveBeenCalledWith({ ...route, profileId, action: "repayment" });
+    expect(quote).toEqual({ amount, fee, total: amount + fee });
+  });
+
+  it("rejects a quote below the minimum instead of showing an unsafe manual transfer", async () => {
+    // given
+    const amount = 1n;
+    const fee = 500n;
+    const minimumSendAmount = 1_000_000n;
+    vi.spyOn(client.lending, "estimateInflowFee").mockResolvedValue({
+      totalFee: fee,
+      minimumSendAmount,
+    });
+
+    // when
+    const quote = getInflowQuote(route, amount, { profileId: "test-profile", action: "deposit" });
+
+    // then
+    await expect(quote).rejects.toThrow("Transfer must be at least 0.001 SOL");
+  });
+
+  it("does not replace a failed SOL fee request with zero fees", async () => {
+    // given
+    const amount = 1_000_000n;
+    const cause = new Error("SOL quotes unavailable");
+    vi.spyOn(client.lending, "estimateInflowFee").mockRejectedValue(cause);
+
+    // when
+    const quote = getInflowQuote(route, amount, { profileId: "test-profile", action: "deposit" });
+
+    // then
+    await expect(quote).rejects.toBe(cause);
   });
 });
 

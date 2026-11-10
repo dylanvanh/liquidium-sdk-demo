@@ -1,22 +1,22 @@
 # Liquidium SDK Demo
 
-A client-side React demo for `@liquidium/client` `0.9.0`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
+A client-side React demo for `@liquidium/client` `0.12.0-rc.0`. It mirrors Liquidium's Simple and Advanced product hierarchy while keeping the implementation focused enough to use as SDK integration reference.
 
 ## Included flows
 
 - Accountless Simple Loans with quote validation, generated deposit and repayment targets, activity polling, and recovery by reference, address, or transaction ID.
-- Native BTC, ETH, USDC, and USDT routes plus ICP, ckBTC, ckETH, ckUSDC, and ckUSDT routes through the SDK's `Chain + Asset` identifiers.
-- Dynamic-connected Ethereum and Bitcoin profiles for supply, borrow, repay, withdraw, and portfolio reads.
+- Native BTC, ETH, SOL, USDC, and USDT routes plus ICP, ckBTC, ckETH, ckSOL, ckUSDC, and ckUSDT routes through the SDK's `Chain + Asset` identifiers.
+- Dynamic-connected Ethereum, Bitcoin, and Solana profiles for supply, borrow, repay, withdraw, and portfolio reads.
 - Manual ICRC transfer instructions with the live ledger fee, exact fee-inclusive wallet debit, copyable account details, and transaction-reference tracking for ICP-chain assets.
 - SDK-owned destination and protocol validation, including explicit recovery when a Simple Loan was created but could not be hydrated immediately.
 - Live Insights charts for supplied capital, borrowed capital, deposit composition, utilization, and rates across SDK-supported pools.
 - Protocol-wide activity with operation filters, transaction links, and automatic refreshes through the SDK history module.
 
-The app uses Liquidium's bundled mainnet canisters and service defaults. It does not broadcast transactions during automated tests.
+The app uses Liquidium's bundled mainnet canisters and service defaults, including the SOL pool. The SDK is installed from the npm registry. It does not broadcast transactions during automated tests.
 
 ## Environment
 
-Copy `.env.example` to `.env` and set a public Dynamic environment configured with Ethereum and Bitcoin wallet connectors.
+Copy `.env.example` to `.env` and set a public Dynamic environment configured with Ethereum, Bitcoin, and Solana wallet connectors.
 
 ```bash
 VITE_DYNAMIC_ENVIRONMENT_ID=
@@ -56,4 +56,4 @@ docker buildx build \
 - `src/InsightsApp.tsx` derives live market charts and the asset table from SDK pool snapshots.
 - `src/ActivityApp.tsx` displays recent protocol lending events from the SDK history module.
 - `src/liquidium.ts` owns request construction, route mapping, and SDK orchestration.
-- `src/dynamic-wallet.ts` adapts Dynamic Ethereum and Bitcoin wallets to the Liquidium `WalletAdapter` interface.
+- `src/dynamic-wallet.ts` adapts Dynamic Ethereum, Bitcoin, and Solana wallets to the Liquidium `WalletAdapter` interface.

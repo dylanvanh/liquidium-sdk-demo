@@ -1,10 +1,11 @@
 import { isBitcoinWallet } from "@dynamic-labs/bitcoin";
 import { isEthereumWallet } from "@dynamic-labs/ethereum";
 import type { useDynamicContext } from "@dynamic-labs/sdk-react-core";
-import { Chain, type WalletAdapter } from "@liquidium/client";
+import { isSolanaWallet } from "@dynamic-labs/solana";
+import { Chain, type SigningChain, type WalletAdapter } from "@liquidium/client";
+import { createSolanaAdapter } from "./solana-wallet";
 
 type DynamicWallet = ReturnType<typeof useDynamicContext>["primaryWallet"];
-type SigningChain = typeof Chain.BTC | typeof Chain.ETH;
 
 type EvmWalletClient = {
   signMessage?(request: { account: `0x${string}`; message: string }): Promise<string>;
@@ -41,6 +42,11 @@ export type ConnectedWallet = {
 
 export function getConnectedWallet(wallet: DynamicWallet): ConnectedWallet | null {
   if (!wallet) return null;
+  if (isSolanaWallet(wallet)) {
+    const address = wallet.address?.trim();
+    if (!address) return null;
+    return { address, chain: Chain.SOL, adapter: createSolanaAdapter(wallet) };
+  }
   if (isEthereumWallet(wallet)) {
     const address = wallet.address?.trim();
     if (!address) return null;

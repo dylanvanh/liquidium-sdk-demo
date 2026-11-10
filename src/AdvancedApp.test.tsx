@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Toaster } from "@/components/ui/sonner";
+import type { ConnectedWallet } from "./dynamic-wallet";
 import {
   Asset,
   Chain,
@@ -28,11 +29,12 @@ const mocks = vi.hoisted(() => ({
       address: "0x1111111111111111111111111111111111111111",
       chain: "ETH",
       adapter: { signMessage: vi.fn(), sendEthTransaction: vi.fn() },
-    } as { address: string; chain: "ETH"; adapter: object } | null,
+    } as { address: string; chain: "ETH" | "SOL"; adapter: object } | null,
   },
   primaryWallet: {
     current: { address: "0x1111111111111111111111111111111111111111" } as object | null,
   },
+  userWallets: { current: [] as ConnectedWallet[] },
 }));
 
 vi.mock("@dynamic-labs/bitcoin", () => ({ BitcoinWalletConnectors: {} }));
@@ -41,9 +43,12 @@ vi.mock("@dynamic-labs/sdk-react-core", () => ({
   DynamicContextProvider: ({ children }: { children: React.ReactNode }) => children,
   DynamicWidget: () => <button type="button">Connected wallet</button>,
   useDynamicContext: () => ({ primaryWallet: mocks.primaryWallet.current }),
+  useUserWallets: () => mocks.userWallets.current,
 }));
 vi.mock("./dynamic-wallet", () => ({
-  getConnectedWallet: () => mocks.connectedWallet.current,
+  getConnectedWallet: (wallet: { address?: string } | null) =>
+    mocks.userWallets.current.find((connected) => connected.address === wallet?.address) ??
+    mocks.connectedWallet.current,
 }));
 
 const pool = {
@@ -70,6 +75,7 @@ const ethPool = {
   decimals: 18n,
   frozen: false,
 } as Pool;
+const solPool = { ...pool, id: "sol-pool", asset: Asset.SOL, chain: Chain.SOL, decimals: 9n };
 const reserve = {
   pool,
   position: {
@@ -88,13 +94,25 @@ const reserve = {
   borrowedUsd: 10_000_000n,
   usdDecimals: 6n,
 } satisfies UserReserve;
+const solReserve = {
+  ...reserve,
+  pool: solPool,
+  position: {
+    ...reserve.position,
+    poolId: solPool.id,
+    asset: Asset.SOL,
+    depositedDecimals: 9n,
+    borrowedDecimals: 9n,
+    borrowed: 100_000_000n,
+  },
+} satisfies UserReserve;
 
 vi.mock("./liquidium", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./liquidium")>();
   return {
     ...actual,
     fetchMarketData: vi.fn(async () => ({
-      pools: [pool, btcPool, ethPool],
+      pools: [pool, btcPool, ethPool, solPool],
       prices: { USDT: 1, BTC: 100_000, ETH: 4_000 },
       routes: [
         {
@@ -131,6 +149,13 @@ vi.mock("./liquidium", async (importOriginal) => {
           chain: Chain.ETH,
           displaySymbol: "ETH",
           decimals: 18n,
+        },
+        {
+          poolId: solPool.id,
+          asset: Asset.SOL,
+          chain: Chain.SOL,
+          displaySymbol: "SOL",
+          decimals: 9n,
         },
       ],
     })),
@@ -172,6 +197,7 @@ beforeEach(() => {
     adapter: { signMessage: vi.fn(), sendEthTransaction: vi.fn() },
   };
   mocks.primaryWallet.current = { address: "0x1111111111111111111111111111111111111111" };
+  mocks.userWallets.current = [];
   mocks.resolveProfile.mockResolvedValue("profile-id");
   mocks.createProfile.mockResolvedValue("profile-id");
   mocks.fetchPortfolio.mockResolvedValue(defaultPortfolio);
@@ -259,6 +285,118 @@ async function selectRoute(name: string) {
 }
 
 describe("advanced profile flow", () => {
+  it.each([true, false])(
+    "uses a secondary SOL wallet for repayment when connected: %s",
+    async (hasSolWallet) => {
+      // given
+      const profileAddress = mocks.connectedWallet.current?.address;
+      const fundingWallet: ConnectedWallet = {
+        address: "So11111111111111111111111111111111111111112",
+        chain: Chain.SOL,
+        adapter: { sendSolTransaction: vi.fn(async () => "sol-transaction") },
+      };
+      const repayInput = "0.05";
+      const repayAmountLamports = 50_000_000n;
+      const inflowFeeLamports = 10n;
+      mocks.userWallets.current = hasSolWallet ? [fundingWallet] : [];
+      mocks.fetchPortfolio.mockResolvedValue({ ...defaultPortfolio, reserves: [solReserve] });
+      await renderAdvanced();
+      await screen.findByRole("heading", { name: "Supply an asset" });
+      fireEvent.click(screen.getByRole("button", { name: "portfolio" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Repay" }));
+      fireEvent.change(screen.getByLabelText("repay amount"), { target: { value: repayInput } });
+
+      // when
+      fireEvent.click(screen.getByRole("button", { name: "Repay SOL" }));
+
+      // then
+      await waitFor(() =>
+        expect(mocks.createSupplyFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            profileId: "profile-id",
+            action: "repayment",
+            route: expect.objectContaining({ asset: Asset.SOL, chain: Chain.SOL }),
+            amount: hasSolWallet ? repayAmountLamports + inflowFeeLamports : undefined,
+            account: hasSolWallet ? fundingWallet.address : undefined,
+            walletAdapter: hasSolWallet ? fundingWallet.adapter : undefined,
+          }),
+        ),
+      );
+      expect(mocks.resolveProfile).toHaveBeenCalledExactlyOnceWith(profileAddress);
+      expect(screen.getByText(hasSolWallet ? "Sending with SOL" : "Manual transfer")).toBeTruthy();
+    },
+  );
+
+  it("keeps SOL withdrawals authorized by the ETH profile owner with a secondary SOL wallet connected", async () => {
+    // given
+    const profileWallet = mocks.connectedWallet.current;
+    const destination = "So11111111111111111111111111111111111111112";
+    mocks.userWallets.current = [
+      { address: destination, chain: Chain.SOL, adapter: { sendSolTransaction: vi.fn() } },
+    ];
+    mocks.fetchPortfolio.mockResolvedValue({ ...defaultPortfolio, reserves: [solReserve] });
+    await renderAdvanced();
+    await screen.findByRole("heading", { name: "Supply an asset" });
+    fireEvent.click(screen.getByRole("button", { name: "portfolio" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Withdraw" }));
+    fireEvent.change(screen.getByLabelText("withdraw amount"), { target: { value: "0.01" } });
+    fireEvent.change(screen.getByLabelText("withdraw destination"), {
+      target: { value: destination },
+    });
+
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw SOL" }));
+
+    // then
+    await waitFor(() =>
+      expect(mocks.withdrawWithProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          profileId: "profile-id",
+          signerChain: Chain.ETH,
+          signerWalletAddress: profileWallet?.address,
+          signerWalletAdapter: profileWallet?.adapter,
+          route: expect.objectContaining({ chain: Chain.SOL }),
+          receiver: destination,
+        }),
+      ),
+    );
+    expect(screen.getByText("Signing with ETH")).toBeTruthy();
+  });
+
+  it("uses the Solana profile owner to authorize borrowing on another transfer chain", async () => {
+    // given
+    const signerAddress = "11111111111111111111111111111111";
+    const receiver = "0x2222222222222222222222222222222222222222";
+    const borrowInput = "2";
+    mocks.connectedWallet.current = {
+      address: signerAddress,
+      chain: "SOL",
+      adapter: { signMessage: vi.fn(), sendSolTransaction: vi.fn() },
+    };
+    mocks.primaryWallet.current = { address: signerAddress };
+    await renderAdvanced();
+    await screen.findByRole("heading", { name: "Supply an asset" });
+    fireEvent.click(screen.getByRole("button", { name: "borrow" }));
+    await selectRoute("USDT on ETH");
+    fireEvent.change(screen.getByLabelText("borrow amount"), { target: { value: borrowInput } });
+    fireEvent.change(screen.getByLabelText("borrow destination"), { target: { value: receiver } });
+
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Borrow USDT" }));
+
+    // then
+    await waitFor(() =>
+      expect(mocks.borrowWithProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          signerChain: "SOL",
+          signerWalletAddress: signerAddress,
+          signerWalletAdapter: mocks.connectedWallet.current?.adapter,
+          route: expect.objectContaining({ chain: Chain.ETH }),
+          receiver,
+        }),
+      ),
+    );
+  });
   it("creates a manual ICRC target and submits its transaction reference", async () => {
     await renderAdvanced();
     await screen.findByRole("heading", { name: "Supply an asset" });
@@ -299,6 +437,13 @@ describe("advanced profile flow", () => {
   });
 
   it("passes the fee-inclusive amount to the matching connected wallet adapter", async () => {
+    mocks.userWallets.current = [
+      {
+        address: "0x2222222222222222222222222222222222222222",
+        chain: Chain.ETH,
+        adapter: { sendEthTransaction: vi.fn() },
+      },
+    ];
     await renderAdvanced();
     await screen.findByRole("heading", { name: "Supply an asset" });
     fireEvent.change(screen.getByLabelText("supply amount"), { target: { value: "12" } });

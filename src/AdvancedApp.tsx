@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { BitcoinWalletConnectors } from "@dynamic-labs/bitcoin";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+import { SolanaWalletConnectors } from "@dynamic-labs/solana";
 import {
   DynamicContextProvider,
   DynamicWidget,
   useDynamicContext,
+  useUserWallets,
 } from "@dynamic-labs/sdk-react-core";
 import {
   Asset,
@@ -84,7 +86,11 @@ export default function AdvancedApp() {
       settings={{
         environmentId,
         initialAuthenticationMode: "connect-only",
-        walletConnectors: [EthereumWalletConnectors, BitcoinWalletConnectors],
+        walletConnectors: [
+          EthereumWalletConnectors,
+          BitcoinWalletConnectors,
+          SolanaWalletConnectors,
+        ],
       }}
     >
       <AdvancedWorkspace />
@@ -105,9 +111,7 @@ function AdvancedWorkspace() {
   useEffect(() => {
     fetchMarketData()
       .then(setMarket)
-      .catch((cause) =>
-        toast.error(getErrorMessage(cause), { id: "advanced-market-error" }),
-      );
+      .catch((cause) => toast.error(getErrorMessage(cause), { id: "advanced-market-error" }));
   }, []);
 
   useEffect(() => {
@@ -122,8 +126,7 @@ function AdvancedWorkspace() {
       })
       .catch(
         (cause) =>
-          !cancelled &&
-          toast.error(getErrorMessage(cause), { id: "profile-resolution-error" }),
+          !cancelled && toast.error(getErrorMessage(cause), { id: "profile-resolution-error" }),
       )
       .finally(() => !cancelled && setProfileLoading(false));
     return () => {
@@ -297,6 +300,7 @@ function TransactionComposer(props: {
   onBack?: () => void;
   onComplete: () => Promise<void>;
 }) {
+  const userWallets = useUserWallets();
   const reserveRoutes = props.reserve
     ? props.routes.filter((route) => route.poolId === props.reserve?.pool.id)
     : props.routes;
@@ -313,9 +317,12 @@ function TransactionComposer(props: {
   const [ethSupplyMechanism, setEthSupplyMechanism] =
     useState<EthSupplyMechanism>("depositAddress");
   const route = reserveRoutes.find((item) => routeKey(item) === selectedKey) ?? defaultRoute;
-  const automatic = route?.chain === props.wallet.chain;
-  const canChooseEthSupplyMechanism =
-    route?.chain === Chain.ETH && (props.mode === "supply" || props.mode === "repay");
+  const fundingWallet =
+    route?.chain === props.wallet.chain
+      ? props.wallet
+      : userWallets.map(getConnectedWallet).find((wallet) => wallet?.chain === route?.chain);
+  const isInflow = props.mode === "supply" || props.mode === "repay";
+  const canChooseEthSupplyMechanism = route?.chain === Chain.ETH && isInflow;
   const hasNativeEthDestination =
     route?.asset === Asset.ETH &&
     route.chain === Chain.ETH &&
@@ -388,15 +395,18 @@ function TransactionComposer(props: {
         );
         await props.onComplete();
       } else {
-        const quote = await getInflowQuote(route, parsed);
+        const quote = await getInflowQuote(route, parsed, {
+          profileId: props.profileId,
+          action: props.mode === "supply" ? "deposit" : "repayment",
+        });
         setInflowQuote(quote);
         const flow = await createSupplyFlow({
           profileId: props.profileId,
           route,
-          amount: automatic ? quote.total : undefined,
+          amount: fundingWallet ? quote.total : undefined,
           action: props.mode === "supply" ? "deposit" : "repayment",
-          account: automatic ? props.wallet.address : undefined,
-          walletAdapter: automatic ? props.wallet.adapter : undefined,
+          account: fundingWallet?.address,
+          walletAdapter: fundingWallet?.adapter,
           ethMechanism: canChooseEthSupplyMechanism ? ethSupplyMechanism : undefined,
         });
         setSupplyFlow(flow);
@@ -434,7 +444,16 @@ function TransactionComposer(props: {
           <p className="eyebrow">{props.mode}</p>
           <h2>{title}</h2>
         </div>
-        <span className="wallet-route">Signing with {props.wallet.chain}</span>
+        <span
+          className="wallet-route"
+          title={isInflow ? fundingWallet?.address : props.wallet.address}
+        >
+          {isInflow
+            ? fundingWallet
+              ? `Sending with ${fundingWallet.chain}`
+              : "Manual transfer"
+            : `Signing with ${props.wallet.chain}`}
+        </span>
       </div>
       <form onSubmit={submit}>
         <div className="route-select">
@@ -558,7 +577,7 @@ function TransactionComposer(props: {
             wallets are not supported.
           </InlineNotice>
         ) : null}
-        {!automatic && (props.mode === "supply" || props.mode === "repay") ? (
+        {!fundingWallet && isInflow ? (
           <InlineNotice>
             Manual route: the SDK will produce the exact target. Send from your wallet, then enter
             the transaction reference below.
@@ -935,8 +954,8 @@ function ConnectState() {
         <p className="eyebrow">Connect a wallet</p>
         <h2>Advanced lending starts with a profile owner.</h2>
         <p>
-          Use an Ethereum or Bitcoin wallet through Dynamic. ICP transfers remain manual and never
-          require an ICP wallet connection here.
+          Use an Ethereum, Bitcoin, or Solana wallet through Dynamic. ICP transfers remain manual
+          and never require an ICP wallet connection here.
         </p>
       </div>
       <DynamicWidget />

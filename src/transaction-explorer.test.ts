@@ -6,6 +6,7 @@ describe("transaction explorer links", () => {
   it.each([
     [Chain.BTC, "bitcoin-id", "https://mempool.space/tx/bitcoin-id", "Mempool"],
     [Chain.ETH, "0xethereum-id", "https://etherscan.io/tx/0xethereum-id", "Etherscan"],
+    [Chain.SOL, "SolanaSignature", "https://solscan.io/tx/SolanaSignature", "Solscan"],
     [
       Chain.ICP,
       "icp-hash",

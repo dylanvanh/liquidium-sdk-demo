@@ -18,6 +18,8 @@ export function getTransactionExplorerLink(
       return { href: `https://mempool.space/tx/${encodedId}`, label: "Mempool" };
     case Chain.ETH:
       return { href: `https://etherscan.io/tx/${encodedId}`, label: "Etherscan" };
+    case Chain.SOL:
+      return { href: `https://solscan.io/tx/${encodedId}`, label: "Solscan" };
     case Chain.ICP:
       return {
         href: `https://dashboard.internetcomputer.org/transaction/${encodedId}`,
